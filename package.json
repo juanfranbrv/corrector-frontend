@@ -16,7 +16,8 @@
     "@supabase/supabase-js": "^2.49.8",
     "next": "15.3.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "yet-another-react-lightbox": "^3.23.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
