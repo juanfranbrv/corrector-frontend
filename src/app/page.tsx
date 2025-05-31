@@ -1,7 +1,7 @@
 // src/app/page.tsx
 'use client';
 
-import React, { useState } from 'react'; // useEffect eliminado si no se usa
+import React, { useState } from 'react';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';

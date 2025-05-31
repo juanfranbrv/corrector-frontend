@@ -10,7 +10,7 @@ import Box from '@mui/material/Box';
 import { useAuth } from '@/context/AuthContext'; // Nuestro hook useAuth
 
 export default function NavUserStatus() {
-  const { user, session, loading, signOut } = useAuth();
+  const { user, session, loading } = useAuth();
 
   if (loading) {
     return <CircularProgress size={24} color="inherit" />;
@@ -23,8 +23,8 @@ export default function NavUserStatus() {
           <Typography variant="body2" sx={{ color: 'white' }}>
             {user.email}
           </Typography>
-          <Button color="inherit" onClick={signOut}>
-            Logout
+          <Button color="inherit" component={Link} href="/auth">
+            Cerrar Sesión
           </Button>
         </>
       ) : (
