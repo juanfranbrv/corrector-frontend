@@ -23,6 +23,9 @@ import IconButton from '@mui/material/IconButton';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ImageIcon from '@mui/icons-material/Image';
 import DeleteIcon from '@mui/icons-material/Delete';
+import TextFieldsIcon from '@mui/icons-material/TextFields';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'; // Icono para créditos
 
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -43,21 +46,19 @@ interface UserProfileData {
   exp?: number;
   current_paper_count: number;
   max_paper_quota: number;
+  credits?: number; // Añadir créditos si tu backend /users/me/ los devuelve
 }
 
-// Interfaz para ExamPaper (debe coincidir con models.ExamPaperRead del backend)
+// Interfaz para ExamPaper
 interface ExamPaper {
-  id: number;
-  filename: string | null;
-  image_url: string | null;
-  status: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
+  id: number; filename: string | null; image_url: string | null; status: string;
+  user_id: string; created_at: string; updated_at: string;
+  transcribed_text?: string | null;
+  transcription_credits_consumed?: number;
 }
 
 export default function DashboardPage() {
-  const { user, session, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading, signOut } = useAuth(); // Añadido signOut para un botón de logout si se quisiera aquí
   const router = useRouter();
 
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
@@ -75,22 +76,28 @@ export default function DashboardPage() {
   const [paperToDelete, setPaperToDelete] = useState<ExamPaper | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [isTranscribingId, setIsTranscribingId] = useState<number | null>(null);
+  const [openTranscriptionDialog, setOpenTranscriptionDialog] = useState(false);
+  const [currentTranscriptionText, setCurrentTranscriptionText] = useState<string>("");
+
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error" | "info">("success");
 
-  // Protección de Ruta
+  // Efecto para proteger la ruta: redirigir si no está autenticado
   useEffect(() => {
-    if (authLoading) return;
-    if (!user || !session) {
-      router.replace('/auth');
+    if (authLoading) { // Si la autenticación general está cargando, no hacer nada aún
+      return;
+    }
+    if (!user || !session) { // Si, después de cargar auth, no hay usuario o sesión
+      router.replace('/auth'); // Redirigir a la página de autenticación
     }
   }, [user, session, authLoading, router]);
 
-  // Cargar Perfil del Usuario (incluye info de cuota)
+  // Cargar Perfil del Usuario (incluye info de cuota y créditos)
   const fetchUserProfile = useCallback(async () => {
     if (!session?.access_token) {
-      setProfileError("No hay token de acceso disponible.");
+      setProfileError("No hay token de acceso disponible para cargar el perfil.");
       return;
     }
     setIsLoadingProfile(true);
@@ -104,7 +111,7 @@ export default function DashboardPage() {
         throw new Error(errorData.detail || `Error del servidor [${response.status}]`);
       }
       const data: UserProfileData = await response.json();
-      setProfileData(data);
+      setProfileData(data); // Esto ahora debería incluir los créditos si el backend los envía
     } catch (e: any) {
       setProfileError(e.message);
     } finally {
@@ -113,7 +120,7 @@ export default function DashboardPage() {
   }, [session]);
 
   // Cargar Lista de Redacciones
-  const fetchExamPapers = useCallback(async () => {
+  const fetchExamPapers = useCallback(async (showNotification = false) => {
     if (!session?.access_token) {
       setPapersError("No hay token de acceso para cargar las redacciones.");
       return;
@@ -123,10 +130,7 @@ export default function DashboardPage() {
     try {
       const response = await fetch('http://localhost:8000/exam_papers/', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
@@ -134,6 +138,11 @@ export default function DashboardPage() {
       }
       const data: ExamPaper[] = await response.json();
       setExamPapers(data);
+      if (showNotification) {
+        setSnackbarMessage("Lista de redacciones actualizada.");
+        setSnackbarSeverity("info");
+        setSnackbarOpen(true);
+      }
     } catch (e: any) {
       console.error("Error fetching exam papers:", e);
       setPapersError(e.message);
@@ -144,80 +153,75 @@ export default function DashboardPage() {
 
   // Cargar datos iniciales cuando la sesión esté disponible
   useEffect(() => {
-    if (session) {
+    if (user && session) { // Solo cargar datos si el usuario está autenticado
       fetchUserProfile();
       fetchExamPapers();
     }
-  }, [session, fetchUserProfile, fetchExamPapers]);
+  }, [user, session, fetchUserProfile, fetchExamPapers]); // Depender de user también
 
   // Funciones para Lightbox
-  const openLightbox = (index: number) => {
-    setLightboxImageIndex(index);
-    setLightboxOpen(true);
-  };
-  const lightboxSlides = examPapers
-    .filter(paper => paper.image_url)
-    .map(paper => ({ src: paper.image_url! }));
+  const openLightbox = (index: number) => { setLightboxImageIndex(index); setLightboxOpen(true); };
+  const lightboxSlides = examPapers.filter(p => p.image_url).map(p => ({ src: p.image_url! }));
 
   // Funciones para Diálogo de Eliminación
-  const handleClickOpenDeleteDialog = (paper: ExamPaper) => {
-    setPaperToDelete(paper);
-    setOpenDeleteDialog(true);
-  };
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-    setPaperToDelete(null);
-  };
+  const handleClickOpenDeleteDialog = (paper: ExamPaper) => { setPaperToDelete(paper); setOpenDeleteDialog(true); };
+  const handleCloseDeleteDialog = () => { setOpenDeleteDialog(false); setPaperToDelete(null); };
   const handleConfirmDelete = async () => {
-    if (!paperToDelete || !session?.access_token) {
-      setSnackbarMessage("Error: No se pudo identificar la redacción o falta el token.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-      return;
-    }
+    if (!paperToDelete || !session?.access_token) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(`http://localhost:8000/exam_papers/${paperToDelete.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${session.access_token}` },
-      });
-      const responseData = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(responseData?.detail || `Error al eliminar: ${response.statusText}`);
-      }
-      setSnackbarMessage(responseData?.message || "Redacción eliminada exitosamente.");
-      setSnackbarSeverity("success");
-      setExamPapers(prevPapers => prevPapers.filter(p => p.id !== paperToDelete.id));
-      fetchUserProfile(); // Actualizar la información de cuota
-    } catch (e: any) {
-      console.error("Error deleting exam paper:", e);
-      setSnackbarMessage(`Error al eliminar: ${e.message}`);
-      setSnackbarSeverity("error");
-    } finally {
-      setIsDeleting(false);
-      handleCloseDeleteDialog();
-      setSnackbarOpen(true);
-    }
+      const res = await fetch(`http://localhost:8000/exam_papers/${paperToDelete.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` }});
+      const d = await res.json().catch(()=>null);
+      if (!res.ok) throw new Error(d?.detail || res.statusText);
+      setSnackbarMessage(d?.message || "Redacción eliminada."); setSnackbarSeverity("success");
+      setExamPapers(p => p.filter(i => i.id !== paperToDelete.id));
+      fetchUserProfile(); // Actualizar cuota y créditos
+    } catch (e:any) { setSnackbarMessage(`Error al eliminar: ${e.message}`); setSnackbarSeverity("error");
+    } finally { setIsDeleting(false); handleCloseDeleteDialog(); setSnackbarOpen(true); }
   };
+
+  // Lógica de Transcripción
+  const handleTranscribe = async (paperId: number) => {
+    if (!session?.access_token) { setSnackbarMessage("Error de autenticación."); setSnackbarSeverity("error"); setSnackbarOpen(true); return; }
+    setIsTranscribingId(paperId); setSnackbarMessage("Iniciando transcripción..."); setSnackbarSeverity("info"); setSnackbarOpen(true);
+    try {
+      const response = await fetch(`http://localhost:8000/exam_papers/${paperId}/transcribe`, { method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` }});
+      const responseData: ExamPaper | { detail: string } = await response.json();
+      if (!response.ok) { const detailMessage = (responseData as { detail: string }).detail || `Error ${response.status}`; throw new Error(detailMessage); }
+      const updatedPaper = responseData as ExamPaper;
+      setExamPapers(p => p.map(i => i.id === paperId ? { ...i, ...updatedPaper } : i));
+      setSnackbarMessage(`Transcripción para "${updatedPaper.filename || 'ID: '+paperId}" completada.`); setSnackbarSeverity("success");
+      fetchUserProfile(); // Actualizar créditos
+    } catch (e: any) {
+      console.error("Error transcribing exam paper:", e);
+      setSnackbarMessage(`Error en transcripción: ${e.message}`); setSnackbarSeverity("error");
+      setExamPapers(p => p.map(i => i.id === paperId ? { ...i, status: 'error_transcription' } : i));
+    } finally { setIsTranscribingId(null); setSnackbarOpen(true); }
+  };
+  const handleOpenTranscriptionDialog = (text: string | null | undefined) => { setCurrentTranscriptionText(text || "No hay texto."); setOpenTranscriptionDialog(true); };
+  const handleCloseTranscriptionDialog = () => setOpenTranscriptionDialog(false);
 
   // Función para Snackbar
-  const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') return;
-    setSnackbarOpen(false);
-  };
+  const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => { if (reason === 'clickaway') return; setSnackbarOpen(false); };
 
-  // Renderizado condicional mientras carga la autenticación
-  if (authLoading || (!user && !authLoading && !router.asPath.startsWith('/auth'))) {
-    return (
+  // Renderizado condicional robusto
+  if (authLoading) {
+    return ( // Loader principal mientras se determina el estado de autenticación
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 64px)' }}>
-        <CircularProgress />
+        <CircularProgress size={60} />
+        <Typography sx={{ml: 2}}>Cargando sesión...</Typography>
       </Box>
     );
   }
-  // Si después de la carga no hay usuario (ya debería haber redirigido)
-  if (!user || !session) return null;
 
-  // Calcular si la cuota ha sido alcanzada
+  // Si, después de que authLoading es false, NO hay usuario o sesión,
+  // el useEffect ya debería haber iniciado la redirección a /auth.
+  // Renderizar null aquí evita cualquier intento de renderizar el dashboard.
+  if (!user || !session) {
+    return null; // O un loader más simple si la redirección tarda un instante visualmente
+  }
+
+  // Si llegamos aquí, el usuario está autenticado y la sesión está cargada.
   const quotaReached = profileData ? profileData.current_paper_count >= profileData.max_paper_quota : false;
 
   return (
@@ -227,9 +231,19 @@ export default function DashboardPage() {
           <Typography variant="h4" component="h1" gutterBottom align="center">
             Dashboard del Profesor
           </Typography>
-          <Typography variant="body1" gutterBottom sx={{ mb: 1, textAlign: 'center' }}>
-            ¡Bienvenido, {user.email}!
-          </Typography>
+          <Box sx={{ textAlign: 'center', mb: 2}}>
+            <Typography variant="body1">
+              ¡Bienvenido, {user.email}!
+            </Typography>
+            {profileData && (
+              <Box sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mt: 1, color: 'text.secondary'}}>
+                <AccountBalanceWalletIcon fontSize="small" />
+                <Typography variant="body2">
+                   Créditos disponibles: {profileData.credits ?? 'N/A'}
+                </Typography>
+              </Box>
+            )}
+          </Box>
           
           {profileData && (
             <Typography variant="subtitle1" color={quotaReached ? "error.main" : "text.secondary"} sx={{ mb: 3, textAlign: 'center', fontWeight: quotaReached ? 'bold' : 'normal' }}>
@@ -239,90 +253,58 @@ export default function DashboardPage() {
           )}
 
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3, justifyContent:'center' }}>
-              <Button
-                variant="contained"
-                color="primary"
-                component={Link}
-                href="/upload-exam"
-                sx={{ py: 1.5, minWidth: '200px' }}
-                disabled={quotaReached || isLoadingProfile}
-              >
+              <Button variant="contained" color="primary" component={Link} href="/upload-exam" sx={{ py: 1.5, minWidth: '200px' }} disabled={quotaReached || isLoadingProfile || authLoading}>
                 Subir Nueva Redacción
               </Button>
-              <Button
-                variant="outlined"
-                onClick={fetchUserProfile}
-                disabled={isLoadingProfile}
-                sx={{ py: 1.5, minWidth: '200px' }}
-              >
-                {isLoadingProfile ? <CircularProgress size={24} /> : `Refrescar Perfil ${isLoadingProfile ? "" : `(${profileData?.current_paper_count ?? '?'}/${profileData?.max_paper_quota ?? '?'})`}`}
+              <Button variant="outlined" onClick={fetchUserProfile} disabled={isLoadingProfile || authLoading} sx={{ py: 1.5, minWidth: '200px' }}>
+                {isLoadingProfile ? <CircularProgress size={24} /> : `Refrescar Perfil y Cuota`}
               </Button>
           </Box>
 
           {profileError && !profileData && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>Error al cargar perfil: {profileError}</Alert>}
-          {/* Ya no es necesario mostrar profileData aquí si solo se usa para la cuota y el email de bienvenida */}
 
           <Box sx={{ mt: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h5" component="h2">
-                Mis Redacciones Subidas
-              </Typography>
-              <IconButton onClick={() => { fetchExamPapers(); fetchUserProfile(); }} disabled={isLoadingPapers || isLoadingProfile} color="primary" aria-label="refrescar todo">
-                {isLoadingPapers || isLoadingProfile ? <CircularProgress size={24} /> : <RefreshIcon />}
-              </IconButton>
+              <Typography variant="h5" component="h2">Mis Redacciones Subidas</Typography>
+              <IconButton onClick={() => { fetchExamPapers(true); fetchUserProfile(); }} disabled={isLoadingPapers || isLoadingProfile} color="primary" aria-label="refrescar todo"><RefreshIcon /></IconButton>
             </Box>
-
             {papersError && <Alert severity="error" sx={{ mb: 2 }}>Error al cargar redacciones: {papersError}</Alert>}
-            
-            {!isLoadingPapers && examPapers.length === 0 && !papersError && (
-              <Typography sx={{textAlign: 'center', color: 'text.secondary', my:3}}>
-                  Aún no has subido ninguna redacción. ¡Empieza <Link href="/upload-exam" style={{color: 'primary.main'}}>subiendo una</Link>!
-              </Typography>
-            )}
-
-            {examPapers.length > 0 && (
+            {isLoadingPapers && !papersError && (<Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}><CircularProgress /></Box>)}
+            {!isLoadingPapers && examPapers.length === 0 && !papersError && ( <Typography sx={{textAlign: 'center', color: 'text.secondary', my:3}}>Aún no has subido ninguna redacción. ¡Empieza <Link href="/upload-exam" style={{color: 'primary.main'}}>subiendo una</Link>!</Typography>)}
+            {!isLoadingPapers && examPapers.length > 0 && (
               <TableContainer component={Paper} elevation={2}>
-                <Table sx={{ minWidth: 750 }} aria-label="tabla de redacciones">
-                  <TableHead sx={{ backgroundColor: 'primary.dark' }}> {/* Un poco más oscuro para el header */}
+                <Table sx={{ minWidth: 850 }} aria-label="tabla de redacciones">
+                  <TableHead sx={{ backgroundColor: 'primary.dark' }}>
                     <TableRow>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>ID</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Nombre Archivo</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Estado</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Subido el</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold', textAlign:'center' }}>Imagen</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold', textAlign:'center' }}>Acciones</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold'}}>ID</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold'}}>Nombre Archivo</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold'}}>Estado</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold'}}>Subido el</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Imagen</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Transcripción</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {examPapers.map((paper) => (
-                      <TableRow
-                        key={paper.id}
-                        sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': {backgroundColor: 'action.hover'}}}
-                      >
-                        <TableCell component="th" scope="row">{paper.id}</TableCell>
-                        <TableCell sx={{maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}} title={paper.filename || undefined}>{paper.filename || "N/A"}</TableCell>
-                        <TableCell>{paper.status}</TableCell>
-                        <TableCell>{new Date(paper.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell align="center">
-                          {paper.image_url && (
-                            <IconButton onClick={() => openLightbox(lightboxSlides.findIndex(slide => slide.src === paper.image_url))} size="small" aria-label={`ver imagen ${paper.filename}`}>
-                              <ImageIcon />
-                            </IconButton>
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => handleClickOpenDeleteDialog(paper)}
-                            aria-label={`eliminar redacción ${paper.filename || paper.id}`}
-                            disabled={isDeleting && paperToDelete?.id === paper.id} // Deshabilitar solo el botón del ítem que se está eliminando
-                          >
-                           {isDeleting && paperToDelete?.id === paper.id ? <CircularProgress size={20} color="inherit"/> : <DeleteIcon fontSize="inherit" />}
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {examPapers.map((paper) => {
+                      const isCurrentlyTranscribing = isTranscribingId === paper.id;
+                      const canTranscribe = paper.status === 'uploaded' || paper.status === 'error_transcription';
+                      const canViewTranscription = paper.status === 'transcribed' && paper.transcribed_text;
+                      return (
+                        <TableRow key={paper.id} sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': {backgroundColor: 'action.hover'}}}>
+                          <TableCell>{paper.id}</TableCell>
+                          <TableCell sx={{maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}} title={paper.filename || undefined}>{paper.filename || "N/A"}</TableCell>
+                          <TableCell>{isCurrentlyTranscribing ? 'Transcribiendo...' : paper.status}</TableCell>
+                          <TableCell>{new Date(paper.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell align="center">{paper.image_url && (<IconButton onClick={() => openLightbox(lightboxSlides.findIndex(slide => slide.src === paper.image_url))} size="small"><ImageIcon /></IconButton>)}</TableCell>
+                          <TableCell align="center">
+                            {canViewTranscription ? ( <IconButton size="small" color="success" onClick={() => handleOpenTranscriptionDialog(paper.transcribed_text)}><VisibilityIcon fontSize="inherit" /></IconButton>
+                            ) : ( <Button size="small" variant="outlined" startIcon={isCurrentlyTranscribing ? <CircularProgress size={16} /> : <TextFieldsIcon />} onClick={() => handleTranscribe(paper.id)} disabled={isCurrentlyTranscribing || !canTranscribe} sx={{minWidth: '120px'}}>{isCurrentlyTranscribing ? "En Proceso" : "Transcribir"}</Button>)}
+                          </TableCell>
+                          <TableCell align="center"><IconButton size="small" color="error" onClick={() => handleClickOpenDeleteDialog(paper)} disabled={isDeleting && paperToDelete?.id === paper.id}><DeleteIcon fontSize="inherit" /></IconButton></TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -330,49 +312,10 @@ export default function DashboardPage() {
           </Box>
         </Paper>
       </Container>
-
-      <Lightbox
-        open={lightboxOpen}
-        close={() => setLightboxOpen(false)}
-        slides={lightboxSlides}
-        index={lightboxImageIndex}
-      />
-
-      <Dialog
-        open={openDeleteDialog}
-        onClose={handleCloseDeleteDialog}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">
-          Confirmar Eliminación
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            ¿Estás seguro de que quieres eliminar la redacción "{paperToDelete?.filename || `ID: ${paperToDelete?.id}`}"?
-            Esta acción no se puede deshacer y también eliminará la imagen asociada.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} color="primary" disabled={isDeleting}>
-            Cancelar
-          </Button>
-          <Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>
-            {isDeleting ? <CircularProgress size={20} /> : "Eliminar"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }} variant="filled">
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      <Lightbox open={lightboxOpen} close={() => setLightboxOpen(false)} slides={lightboxSlides} index={lightboxImageIndex} />
+      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><DialogContentText>¿Estás seguro de que quieres eliminar la redacción "{paperToDelete?.filename || `ID: ${paperToDelete?.id}`}"? Esta acción no se puede deshacer y también eliminará la imagen asociada.</DialogContentText></DialogContent><DialogActions><Button onClick={handleCloseDeleteDialog} disabled={isDeleting}>Cancelar</Button><Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>{isDeleting ? <CircularProgress size={20} />:"Eliminar"}</Button></DialogActions></Dialog>
+      <Dialog open={openTranscriptionDialog} onClose={handleCloseTranscriptionDialog} maxWidth="md" fullWidth><DialogTitle>Texto Transcrito</DialogTitle><DialogContent dividers><Typography sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{currentTranscriptionText}</Typography></DialogContent><DialogActions><Button onClick={handleCloseTranscriptionDialog}>Cerrar</Button></DialogActions></Dialog>
+      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}><Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }} variant="filled">{snackbarMessage}</Alert></Snackbar>
     </>
   );
 }
