@@ -1,26 +1,25 @@
 // src/components/ThemeRegistry.tsx
 'use client';
-import createCache from '@emotion/cache';
+import createCache, { Options as EmotionCacheOptions } from '@emotion/cache'; // Importar Options y renombrar
 import { useServerInsertedHTML } from 'next/navigation';
 import { CacheProvider } from '@emotion/react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import theme from './theme'; // Crearemos este archivo a continuación
+import theme from './theme'; 
 import React from 'react';
 
-// This implementation is from emotion-js
-// https://github.com/emotion-js/emotion/issues/2928#issuecomment-1319747902
-export default function ThemeRegistry(props: { options?: any, children: React.ReactNode }) {
+// Este tipo ahora usa EmotionCacheOptions en lugar de 'any'
+export default function ThemeRegistry(props: { options?: EmotionCacheOptions, children: React.ReactNode }) {
   const { options, children } = props;
 
   const [{ cache, flush }] = React.useState(() => {
-    const cache = createCache(options || { key: 'mui' });
-    cache.compat = true;
-    const prevInsert = cache.insert;
+    const cacheInstance = createCache(options || { key: 'mui' }); // Usar cacheInstance para evitar conflicto de nombres
+    cacheInstance.compat = true;
+    const prevInsert = cacheInstance.insert;
     let inserted: string[] = [];
-    cache.insert = (...args) => {
+    cacheInstance.insert = (...args) => {
       const serialized = args[1];
-      if (cache.inserted[serialized.name] === undefined) {
+      if (cacheInstance.inserted[serialized.name] === undefined) {
         inserted.push(serialized.name);
       }
       return prevInsert(...args);
@@ -30,7 +29,7 @@ export default function ThemeRegistry(props: { options?: any, children: React.Re
       inserted = [];
       return prevInserted;
     };
-    return { cache, flush };
+    return { cache: cacheInstance, flush }; // Devolver cacheInstance
   });
 
   useServerInsertedHTML(() => {

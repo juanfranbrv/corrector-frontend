@@ -1,11 +1,20 @@
 // src/context/AuthContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabaseClient'; // Nuestro cliente Supabase
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabaseClient'; // ajusta la ruta si cambia
 
+// ------------------------------------
+// Tipo del valor que expondrá el contexto
+// ------------------------------------
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -13,77 +22,80 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+// ------------------------------------
+// Creación y hook para consumir el contexto
+// ------------------------------------
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+// ------------------------------------
+// Provider
+// ------------------------------------
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
   const router = useRouter();
 
   useEffect(() => {
-    setLoading(true);
-    // Intenta obtener la sesión actual al cargar la app
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    /* ---------- 1. Sesión inicial ---------- */
+    (async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
       setLoading(false);
+    })();
+
+    /* ---------- 2. Listener de cambios ---------- *
+       onAuthStateChange devuelve:
+       { data: { subscription: Subscription } }
+    */
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      setLoading(false);
+
+      /* Ejemplos de redirección opcional
+      if (_event === 'SIGNED_IN') router.push('/dashboard');
+      if (_event === 'SIGNED_OUT') router.push('/auth');
+      */
     });
 
-    // Escucha los cambios en el estado de autenticación
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event, session);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
-        // Redirigir después del login con OAuth (Google)
-        // Supabase maneja la sesión después de la redirección de OAuth
-        // y este listener se activará.
-        if (event === 'SIGNED_IN' && session) {
-          // Podrías querer redirigir a una página específica después del login
-          // router.push('/dashboard'); // O donde sea apropiado
-        }
-
-        if (event === 'SIGNED_OUT') {
-          // Redirigir a la página de login o a la home después del logout
-          // router.push('/auth');
-        }
-      }
-    );
-
-    // Limpiar el listener cuando el componente se desmonte
+    /* ---------- 3. Limpieza ---------- */
     return () => {
-      authListener?.unsubscribe();
+      subscription.unsubscribe();
     };
-  }, [router]); // Añadir router como dependencia si lo usas dentro del efecto
+  }, [router]);
 
-  const value = {
+  /* ---------- 4. Acción signOut ---------- */
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/'); // o '/auth'
+  };
+
+  /* ---------- 5. Valor de contexto ---------- */
+  const value: AuthContextType = {
     session,
     user,
     loading,
-    signOut: async () => {
-      await supabase.auth.signOut();
-      // La redirección se maneja en el listener onAuthStateChange (SIGNED_OUT)
-      // o puedes forzar una aquí si es necesario:
-      router.push('/'); // O a /auth
-    },
+    signOut,
   };
 
-  // No renderizar nada hasta que la carga inicial de la sesión haya terminado
-  // para evitar parpadeos o renderizado incorrecto de rutas protegidas
-  // if (loading) {
-  //   return <CircularProgress />; // O algún componente de carga global
-  // }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
