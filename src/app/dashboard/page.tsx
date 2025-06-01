@@ -38,7 +38,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
-// Para renderizar Markdown (opcional pero recomendado)
+// Para renderizar Markdown  (opcional pero recomendado)
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm'; // Para tablas, footnotes, etc. en Markdown
 
