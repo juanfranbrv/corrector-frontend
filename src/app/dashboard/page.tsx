@@ -37,6 +37,8 @@ import Snackbar from '@mui/material/Snackbar';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
+const API_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL || 'https://corrector-backend.onrender.com';
+
 interface UserProfileData {
   sub: string;
   email?: string;
@@ -99,7 +101,7 @@ export default function DashboardPage() {
     }
     setIsLoadingProfile(true);
     setProfileError(null);
-    try {      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me/`, {
+    try {      const response = await fetch(`${API_URL}/users/me/`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!response.ok) {
@@ -128,7 +130,7 @@ export default function DashboardPage() {
       }
       setIsLoadingPapers(true);
       setPapersError(null);
-      try {        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exam_papers/`, {
+      try {        const response = await fetch(`${API_URL}/exam_papers/`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (!response.ok) {
@@ -185,7 +187,7 @@ export default function DashboardPage() {
     setIsDeleting(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/exam_papers/${paperToDelete.id}`,
+        `${API_URL}/exam_papers/${paperToDelete.id}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${session.access_token}` },
@@ -221,7 +223,7 @@ export default function DashboardPage() {
     setSnackbarOpen(true);
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/exam_papers/${paperId}/transcribe`,
+        `${API_URL}/exam_papers/${paperId}/transcribe`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${session.access_token}` },
