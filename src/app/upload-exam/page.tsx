@@ -13,20 +13,21 @@ import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField'; // <--- NUEVA IMPORTACIÓN
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
-import ListItemAvatar from '@mui/material/ListItemAvatar'; // Para miniaturas en la lista
-import Avatar from '@mui/material/Avatar'; // Para miniaturas
+import ListItemAvatar from '@mui/material/ListItemAvatar';
+import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
-import Grid from '@mui/material/Grid';
+// import Grid from '@mui/material/Grid'; // Descomentar si usas el grid de previsualizaciones
 
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const MAX_TOTAL_FILES = 5; // Límite opcional en el número de páginas/archivos
-const API_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL || 'http://127.0.0.1:8000';
+const MAX_TOTAL_FILES = 5;
+const API_BACKEND_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL || 'http://127.0.0.1:8000'; // Asegúrate de usar la variable correcta
 
 interface PreviewableFile {
   file: File;
@@ -38,6 +39,7 @@ export default function UploadExamPage() {
   const router = useRouter();
 
   const [selectedFileObjects, setSelectedFileObjects] = useState<PreviewableFile[]>([]);
+  const [essayTitle, setEssayTitle] = useState<string>(''); // <--- NUEVO ESTADO PARA EL TÍTULO
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -47,7 +49,6 @@ export default function UploadExamPage() {
     if (!user || !session) router.replace('/auth');
   }, [user, session, authLoading, router]);
 
-  // Limpiar URLs de objeto cuando el componente se desmonte
   useEffect(() => {
     return () => {
       selectedFileObjects.forEach(f => URL.revokeObjectURL(f.previewUrl));
@@ -56,7 +57,8 @@ export default function UploadExamPage() {
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    setSuccessMessage(null);
+    // No limpiar successMessage aquí para que el usuario lo vea si acaba de tener éxito.
+    // Se limpiará al iniciar una nueva subida.
 
     if (event.target.files && event.target.files.length > 0) {
       const filesArray = Array.from(event.target.files);
@@ -64,7 +66,7 @@ export default function UploadExamPage() {
 
       if (newFileObjects.length + filesArray.length > MAX_TOTAL_FILES) {
         setError(`Puedes subir un máximo de ${MAX_TOTAL_FILES} páginas por ensayo.`);
-        event.target.value = ''; // Limpiar para permitir re-seleccionar
+        event.target.value = '';
         return;
       }
 
@@ -77,20 +79,19 @@ export default function UploadExamPage() {
           setError(`Archivo '${file.name}' es demasiado grande (Máx ${MAX_FILE_SIZE_MB}MB).`);
           continue;
         }
-        // Evitar duplicados (opcional, basado en nombre y tamaño)
         if (!newFileObjects.some(fo => fo.file.name === file.name && fo.file.size === file.size)) {
           newFileObjects.push({ file, previewUrl: URL.createObjectURL(file) });
         }
       }
       setSelectedFileObjects(newFileObjects);
     }
-    event.target.value = ''; // Limpiar el input para permitir re-seleccionar mismos archivos
+    event.target.value = '';
   };
 
   const removeFile = (indexToRemove: number) => {
     const fileObjectToRemove = selectedFileObjects[indexToRemove];
     if (fileObjectToRemove) {
-      URL.revokeObjectURL(fileObjectToRemove.previewUrl); // Limpiar URL de objeto
+      URL.revokeObjectURL(fileObjectToRemove.previewUrl);
     }
     setSelectedFileObjects(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
   };
@@ -101,8 +102,14 @@ export default function UploadExamPage() {
       setError('Por favor, selecciona al menos un archivo de imagen.');
       return;
     }
+    // Opcional: Validar que el título no esté vacío si lo haces obligatorio
+    // if (!essayTitle.trim()) {
+    //   setError('Por favor, introduce un título para el ensayo.');
+    //   return;
+    // }
     if (!session?.access_token) {
       setError('No autenticado. Por favor, inicia sesión de nuevo.');
+      // Podrías redirigir a /auth aquí
       return;
     }
 
@@ -112,17 +119,20 @@ export default function UploadExamPage() {
 
     const formData = new FormData();
     selectedFileObjects.forEach(fileObject => {
-      formData.append('files', fileObject.file); // El backend espera 'files'
+      formData.append('files', fileObject.file);
     });
-    // Opcional: Si quieres enviar un nombre para el ensayo desde el frontend
-    // const essayTitle = "Ensayo de Prueba"; // Podrías tener un input para esto
-    // if (essayTitle) formData.append('filename_prefix', essayTitle);
+
+    // Añadir el título del ensayo al FormData si se proporcionó
+    if (essayTitle.trim()) {
+      formData.append('essay_title', essayTitle.trim()); // <--- ENVIAR EL TÍTULO
+    }
 
     try {
-      const response = await fetch(`${API_URL}/exam_papers/upload_multiple_images/`, {
+      const response = await fetch(`${API_BACKEND_URL}/exam_papers/upload_multiple_images/`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${session.access_token}`,
+          // 'Content-Type' NO se establece manualmente para FormData con archivos; el navegador lo hace.
         },
         body: formData,
       });
@@ -135,15 +145,16 @@ export default function UploadExamPage() {
       }
 
       setSuccessMessage(
-        `¡Ensayo "${responseData.filename}" (${selectedFileObjects.length} pág.) subido! ID: ${responseData.id}. Redirigiendo...`
+        `¡Ensayo "${responseData.filename || 'Ensayo'}" (${selectedFileObjects.length} pág.) subido! ID: ${responseData.id}. Redirigiendo...`
       );
       
-      selectedFileObjects.forEach(f => URL.revokeObjectURL(f.previewUrl)); // Limpiar todas las URLs de objeto
-      setSelectedFileObjects([]); // Limpiar selección
+      selectedFileObjects.forEach(f => URL.revokeObjectURL(f.previewUrl));
+      setSelectedFileObjects([]);
+      setEssayTitle(''); // Limpiar el título del ensayo
 
       setTimeout(() => {
         router.push('/dashboard');
-      }, 2000); // 2 segundos de retraso
+      }, 2500); // Un poco más de tiempo para leer el mensaje
 
     } catch (e: unknown) {
       const err = e as Error;
@@ -158,6 +169,8 @@ export default function UploadExamPage() {
     return (<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 64px)' }}><CircularProgress /></Box>);
   }
   if (!user && !authLoading) {
+      // Podrías mostrar un mensaje o simplemente no renderizar nada si se va a redirigir.
+      // router.replace('/auth') ya está en el useEffect.
       return null; 
   }
 
@@ -168,21 +181,37 @@ export default function UploadExamPage() {
           Subir Páginas del Ensayo
         </Typography>
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+          
+          {/* CAMPO PARA EL TÍTULO DEL ENSAYO */}
+          <TextField
+            margin="normal"
+            fullWidth
+            id="essay-title"
+            label="Título del Ensayo (Opcional)"
+            name="essayTitle"
+            value={essayTitle}
+            onChange={(e) => setEssayTitle(e.target.value)}
+            helperText="Dale un nombre a tu ensayo para identificarlo fácilmente."
+            sx={{ mb: 2 }}
+          />
+
           <Button
             variant="outlined"
             component="label"
             fullWidth
             startIcon={<CloudUploadIcon />}
             sx={{ mb: 2, py: 1.5, textTransform: 'none' }}
+            disabled={isLoading}
           >
             Seleccionar Imágenes (Máx. {MAX_TOTAL_FILES} páginas, {MAX_FILE_SIZE_MB}MB por pág.)
             <input
               id="exam-image-upload"
               type="file"
               hidden
-              multiple // Permitir selección múltiple
+              multiple
               accept="image/*"
               onChange={handleFileChange}
+              disabled={isLoading}
             />
           </Button>
 
@@ -196,7 +225,7 @@ export default function UploadExamPage() {
                   <ListItem
                     key={index}
                     secondaryAction={
-                      <IconButton edge="end" aria-label="delete" onClick={() => removeFile(index)}>
+                      <IconButton edge="end" aria-label="delete" onClick={() => removeFile(index)} disabled={isLoading}>
                         <DeleteIcon />
                       </IconButton>
                     }
@@ -214,17 +243,6 @@ export default function UploadExamPage() {
                   </ListItem>
                 ))}
               </List>
-              {/* Opcional: Grid de previsualizaciones más grandes
-              <Grid container spacing={1} sx={{mt: 1}}>
-                {selectedFileObjects.map((fileObj, index) => (
-                  <Grid item xs={6} sm={4} md={3} key={`preview-${index}`}>
-                    <Paper variant="outlined" sx={{ aspectRatio: '3/4', position: 'relative', overflow: 'hidden' }}>
-                      <Image src={fileObj.previewUrl} alt={`Vista previa página ${index + 1}`} fill style={{ objectFit: 'contain' }} />
-                    </Paper>
-                  </Grid>
-                ))}
-              </Grid>
-              */}
             </Box>
           )}
 
