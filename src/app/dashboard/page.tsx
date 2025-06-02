@@ -21,9 +21,8 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-
+import Tabs from '@mui/material/Tabs'; // Para navegar entre imágenes
+import Tab from '@mui/material/Tab';   // Para navegar entre imágenes
 
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ImageIcon from '@mui/icons-material/Image';
@@ -59,17 +58,19 @@ interface UserProfileData {
   credits?: number;
 }
 
+// Interfaz para una imagen individual de un ExamPaper
 interface ExamImage {
   id: number;
   image_url: string;
-  page_number?: number | null;
+  page_number?: number | null; // El backend debería asignarlo
   exam_paper_id: number;
 }
 
+// Interfaz actualizada para ExamPaper
 interface ExamPaper {
   id: number;
   filename: string | null;
-  images: ExamImage[]; 
+  images: ExamImage[]; // Array de objetos ExamImage
   status: string;
   user_id: string;
   created_at: string;
@@ -114,7 +115,7 @@ export default function DashboardPage() {
   const [editingPaper, setEditingPaper] = useState<ExamPaper | null>(null);
   const [editableTranscriptionText, setEditableTranscriptionText] = useState('');
   const [isSavingTranscription, setIsSavingTranscription] = useState(false);
-  const [activeImagePageIndex, setActiveImagePageIndex] = useState(0);
+  const [activeImagePageIndex, setActiveImagePageIndex] = useState(0); // Para el editor de múltiples imágenes
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -129,49 +130,27 @@ export default function DashboardPage() {
   const fetchUserProfile = useCallback(async () => {
     console.log("DEBUG: fetchUserProfile - Access Token:", session?.access_token);
     if (!session?.access_token) { setProfileError('No hay token de acceso válido.'); return; }
-    
     setIsLoadingProfile(true); setProfileError(null);
     try {
-      const response = await fetch(`${API_URL}/users/me/`, { 
-        headers: { Authorization: `Bearer ${session.access_token}` } 
-      });
+      const response = await fetch(`${API_URL}/users/me/`, { headers: { Authorization: `Bearer ${session.access_token}` } });
       console.log("DEBUG: fetchUserProfile - Response Status:", response.status);
-      if (!response.ok) { 
-        const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); 
-        console.error("DEBUG: fetchUserProfile - Error Data:", errData);
-        throw new Error(errData.detail || `Error del servidor [${response.status}]`); 
-      }
-      const data = await response.json();
-      setProfileData(data);
-    } catch (e:any) { 
-      console.error("DEBUG: fetchUserProfile - Catch Error:", e);
-      setProfileError(e.message); 
-    } 
+      if (!response.ok) { const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); console.error("DEBUG: fetchUserProfile - Error Data:", errData); throw new Error(errData.detail || `Error del servidor [${response.status}]`); }
+      const data = await response.json(); setProfileData(data);
+    } catch (e:any) { console.error("DEBUG: fetchUserProfile - Catch Error:", e); setProfileError(e.message); } 
     finally { setIsLoadingProfile(false); }
   }, [session]);
 
   const fetchExamPapers = useCallback(async (showNotification = false) => {
     console.log("DEBUG: fetchExamPapers - Access Token:", session?.access_token);
     if (!session?.access_token) { setPapersError('No hay token de acceso válido.'); return; }
-
     setIsLoadingPapers(true); setPapersError(null);
     try {
-      const response = await fetch(`${API_URL}/exam_papers/`, { 
-        headers: { Authorization: `Bearer ${session.access_token}` } 
-      });
+      const response = await fetch(`${API_URL}/exam_papers/`, { headers: { Authorization: `Bearer ${session.access_token}` } });
       console.log("DEBUG: fetchExamPapers - Response Status:", response.status);
-      if (!response.ok) { 
-        const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); 
-        console.error("DEBUG: fetchExamPapers - Error Data:", errData);
-        throw new Error(errData.detail || `Error del servidor [${response.status}]`); 
-      }
-      const data: ExamPaper[] = await response.json();
-      setExamPapers(data);
+      if (!response.ok) { const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); console.error("DEBUG: fetchExamPapers - Error Data:", errData); throw new Error(errData.detail || `Error del servidor [${response.status}]`); }
+      const data: ExamPaper[] = await response.json(); setExamPapers(data);
       if (showNotification) { setSnackbarMessage('Lista de redacciones actualizada.'); setSnackbarSeverity('info'); setSnackbarOpen(true); }
-    } catch (e:any) { 
-      console.error('DEBUG: fetchExamPapers - Catch Error:', e);
-      setPapersError(e.message); 
-    } 
+    } catch (e:any) { console.error('DEBUG: fetchExamPapers - Catch Error:', e); setPapersError(e.message); } 
     finally { setIsLoadingPapers(false); }
   }, [session]);
 
@@ -181,15 +160,11 @@ export default function DashboardPage() {
 
   const openLightboxForPaper = (paper: ExamPaper) => {
     if (paper.images && paper.images.length > 0) {
-        const slides = paper.images.map(img => ({ src: img.image_url })).sort((a, b) => {
-            // Asumiendo que las URLs podrían tener page_X para ordenar, o usar page_number si estuviera en slides
-            const pageNumA = parseInt(a.src.match(/page_(\d+)/)?.[1] || '0');
-            const pageNumB = parseInt(b.src.match(/page_(\d+)/)?.[1] || '0');
-            return pageNumA - pageNumB;
-        });
-        setLightboxSlides(slides);
-        setLightboxImageIndex(0); 
-        setLightboxOpen(true);
+      const sortedImages = [...paper.images].sort((a, b) => (a.page_number || 0) - (b.page_number || 0));
+      const slides = sortedImages.map(img => ({ src: img.image_url }));
+      setLightboxSlides(slides);
+      setLightboxImageIndex(0);
+      setLightboxOpen(true);
     }
   };
 
@@ -219,8 +194,8 @@ export default function DashboardPage() {
       const updatedPaper = resData as ExamPaper;
       setExamPapers((prev) => prev.map((p) => (p.id === paperId ? { ...p, ...updatedPaper } : p)));
       setSnackbarMessage(`Transcripción de '${updatedPaper.filename || 'ID:'+paperId}' completa.`); setSnackbarSeverity('success');
-      fetchUserProfile();
-      handleOpenTranscriptionEditor(updatedPaper);
+      fetchUserProfile(); // Actualizar créditos
+      handleOpenTranscriptionEditor(updatedPaper); // Abrir editor
     } catch (e:any) { 
       console.error('Error transcribiendo:', e); setSnackbarMessage(`Error transcripción: ${e.message}`); setSnackbarSeverity('error'); 
       setExamPapers((prev) => prev.map((p) => p.id === paperId ? { ...p, status: 'error_transcription' } : p));
@@ -265,7 +240,7 @@ export default function DashboardPage() {
       const updatedPaper = resData as ExamPaper;
       setExamPapers((prev) => prev.map((p) => (p.id === paperId ? { ...p, ...updatedPaper } : p)));
       setSnackbarMessage(`Corrección de '${updatedPaper.filename || 'ID:'+paperId}' completa.`); setSnackbarSeverity('success');
-      fetchUserProfile();
+      fetchUserProfile(); // Actualizar créditos
     } catch (e:any) { 
       console.error('Error corrigiendo:', e); setSnackbarMessage(`Error corrección: ${e.message}`); setSnackbarSeverity('error'); 
       setExamPapers((prev) => prev.map((p) => p.id === paperId ? { ...p, status: 'error_correction' } : p));
@@ -294,6 +269,11 @@ export default function DashboardPage() {
     };
     return statusMap[paper.status] || paper.status;
   };
+  
+  // Obtener las imágenes ordenadas para el editor
+  const sortedEditingPaperImages = editingPaper?.images ? 
+    [...editingPaper.images].sort((a, b) => (a.page_number || 0) - (b.page_number || 0)) 
+    : [];
 
   return (
     <>
@@ -325,7 +305,7 @@ export default function DashboardPage() {
                       <TableCell sx={{color:'white',fontWeight:'bold'}}>Nombre</TableCell>
                       <TableCell sx={{color:'white',fontWeight:'bold'}}>Estado</TableCell>
                       <TableCell sx={{color:'white',fontWeight:'bold'}}>Subido</TableCell>
-                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Imagen</TableCell>
+                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Págs.</TableCell>
                       <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Transcripción</TableCell>
                       <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Corrección</TableCell>
                       <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Acciones</TableCell>
@@ -334,11 +314,15 @@ export default function DashboardPage() {
                   <TableBody>
                     {examPapers.map((paper) => {
                       const isProcessingAny = isTranscribingId === paper.id || isCorrectingId === paper.id || isSavingTranscription;
-                      const canTranscribeAI = (paper.status === 'uploaded' || paper.status === 'error_transcription') && !paper.transcribed_text;
+                      const canTranscribeAI = (paper.status === 'uploaded' || paper.status === 'error_transcription') && (!paper.transcribed_text || paper.transcribed_text.trim() === "");
                       const canReviewEditTranscription = paper.status === 'transcribed' || paper.status === 'error_transcription' || (paper.status === 'uploaded' && paper.transcribed_text);
 
                       const canCorrect = paper.status === 'transcribed' && !!paper.transcribed_text;
                       const canViewCorrection = paper.status === 'corrected' && !!paper.corrected_feedback;
+                      
+                      const firstImage = paper.images && paper.images.length > 0 ? 
+                                         [...paper.images].sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[0] 
+                                         : null;
 
                       return (
                         <TableRow key={paper.id} hover>
@@ -347,20 +331,17 @@ export default function DashboardPage() {
                           <TableCell>{getStatusDisplay(paper)}</TableCell>
                           <TableCell>{new Date(paper.created_at).toLocaleDateString()}</TableCell>
                           <TableCell align="center">
-                            {/* Mostrar la primera imagen de la lista 'images' si existe */}
-                            {paper.images && paper.images.length > 0 && paper.images[0].image_url ? (
-                              <IconButton onClick={() => openLightboxForPaper(paper)} size="small"><ImageIcon/></IconButton>
-                            ) : null}
+                            {firstImage?.image_url ? (
+                              <IconButton onClick={() => openLightboxForPaper(paper)} size="small" title={`Ver ${paper.images.length} página(s)`}><ImageIcon/></IconButton>
+                            ) : "-"}
                           </TableCell>
                           
                           <TableCell align="center">
                             {canReviewEditTranscription ? (
                               <Button size="small" variant="outlined" color="info" startIcon={<EditNoteIcon/>} onClick={()=>handleOpenTranscriptionEditor(paper)} disabled={isProcessingAny} sx={{minWidth:'120px'}}>Revisar</Button>
                             ) : canTranscribeAI ? (
-                              <Button size="small" variant="outlined" startIcon={isTranscribingId===paper.id?<CircularProgress size={16}/>:<TextFieldsIcon/>} onClick={()=>handleTranscribe(paper.id)} disabled={isProcessingAny} sx={{minWidth:'120px'}}>{isTranscribingId===paper.id?'Procesando':'Transcribir IA'}</Button>
-                            ) : paper.transcribed_text !== null && paper.transcribed_text !== undefined ? (
-                              <Button size="small" variant="outlined" color="info" startIcon={<EditNoteIcon/>} onClick={()=>handleOpenTranscriptionEditor(paper)} disabled={isProcessingAny} sx={{minWidth:'120px'}}>Editar</Button>
-                            ): (<Typography variant="caption" color="textSecondary">-</Typography>)}
+                              <Button size="small" variant="outlined" startIcon={isTranscribingId===paper.id?<CircularProgress size={16}/>:<TextFieldsIcon/>} onClick={()=>handleTranscribe(paper.id)} disabled={isProcessingAny || paper.images.length === 0} sx={{minWidth:'120px'}}>{isTranscribingId===paper.id?'Procesando':'Transcribir IA'}</Button>
+                            ) : (<Typography variant="caption" color="textSecondary">-</Typography>)}
                           </TableCell>
 
                           <TableCell align="center">
@@ -370,7 +351,7 @@ export default function DashboardPage() {
                               <Button size="small" variant="outlined" color="secondary" startIcon={isCorrectingId===paper.id?<CircularProgress size={16}/>:<SpellcheckIcon/>} onClick={()=>handleCorrect(paper.id)} disabled={!canCorrect || isProcessingAny} sx={{minWidth:'120px'}}>{isCorrectingId===paper.id?'Procesando':'Corregir IA'}</Button>
                             )}
                           </TableCell>
-                          <TableCell align="center"><IconButton size="small" color="error" onClick={()=>handleClickOpenDeleteDialog(paper)} disabled={isDeleting&&paperToDelete?.id===paper.id||isProcessingAny}><DeleteIcon/></IconButton></TableCell>
+                          <TableCell align="center"><IconButton size="small" color="error" onClick={()=>handleClickOpenDeleteDialog(paper)} disabled={(isDeleting&&paperToDelete?.id===paper.id)||isProcessingAny}><DeleteIcon/></IconButton></TableCell>
                         </TableRow>
                       );
                     })}
@@ -394,13 +375,13 @@ export default function DashboardPage() {
       >
         <DialogTitle sx={{ pb: 1 }}>
           Revisar y Editar Transcripción: {editingPaper?.filename || `ID: ${editingPaper?.id || '...'}`}
-          {editingPaper && editingPaper.images && editingPaper.images.length > 1 && ` (Página ${activeImagePageIndex + 1} de ${editingPaper.images.length})`}
+          {sortedEditingPaperImages.length > 1 && ` (Página ${activeImagePageIndex + 1} de ${sortedEditingPaperImages.length})`}
         </DialogTitle>
         <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}>
           <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 45%' }, display: 'flex', flexDirection: 'column', border: '1px solid', borderColor: 'divider', p: 0.5, overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
-            {editingPaper && editingPaper.images && editingPaper.images.length > 0 ? (
+            {sortedEditingPaperImages.length > 0 ? (
               <>
-                {editingPaper.images.length > 1 && (
+                {sortedEditingPaperImages.length > 1 && (
                   <Tabs
                     value={activeImagePageIndex}
                     onChange={(event, newValue) => setActiveImagePageIndex(newValue)}
@@ -409,21 +390,19 @@ export default function DashboardPage() {
                     aria-label="navegación de páginas de imagen"
                     sx={{ borderBottom: 1, borderColor: 'divider', mb: 0.5, flexShrink: 0 }}
                   >
-                    {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0)).map((img, index) => (
+                    {sortedEditingPaperImages.map((img, index) => (
                       <Tab label={`Pág ${img.page_number || index + 1}`} key={img.id || index} sx={{minWidth: '60px'}}/>
                     ))}
                   </Tabs>
                 )}
                 <Box sx={{ flexGrow: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex]?.image_url ? (
+                  {sortedEditingPaperImages[activeImagePageIndex]?.image_url ? (
                     <img
-                      src={editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex].image_url}
-                      alt={`Página ${editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex].page_number || activeImagePageIndex + 1}`}
+                      src={sortedEditingPaperImages[activeImagePageIndex].image_url}
+                      alt={`Página ${sortedEditingPaperImages[activeImagePageIndex].page_number || activeImagePageIndex + 1}`}
                       style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
                     />
-                  ) : (
-                    <Typography>Selecciona una página.</Typography>
-                  )}
+                  ) : ( <Typography>Error al cargar imagen de página.</Typography> )}
                 </Box>
               </>
             ) : (<Typography>No hay imágenes para esta redacción.</Typography>)}
@@ -436,7 +415,7 @@ export default function DashboardPage() {
               onChange={(e) => setEditableTranscriptionText(e.target.value)}
               variant="outlined"
               placeholder="Edita la transcripción completa aquí..."
-              helperText="La transcripción de todas las páginas se muestra aquí. Edita según sea necesario."
+              helperText="La transcripción de todas las páginas se muestra aquí (con separadores). Edita según sea necesario."
               sx={{ flexGrow:1, '& .MuiInputBase-root':{height:'100%',display:'flex',flexDirection:'column', alignItems: 'flex-start'}, '& .MuiInputBase-inputMultiline':{flexGrow:1,height:'100% !important',overflowY:'auto !important',p:1.5,fontFamily:'monospace',fontSize:'0.95rem',lineHeight:1.6} }}
             />
           </Box>
