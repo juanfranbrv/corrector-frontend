@@ -21,8 +21,8 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
-import Tabs from '@mui/material/Tabs'; // Asegúrate que esta importación esté si usas Tabs
-import Tab from '@mui/material/Tab';   // Asegúrate que esta importación esté si usas Tabs
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
 
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -46,7 +46,6 @@ import 'yet-another-react-lightbox/styles.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-// Asegúrate que esta URL sea la correcta para tu entorno Vercel (debería venir de .env.local o variables de Vercel)
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 interface UserProfileData {
@@ -60,8 +59,7 @@ interface UserProfileData {
   credits?: number;
 }
 
-// Interfaz actualizada para ExamPaper con múltiples imágenes
-interface ExamImage { // Definición para la imagen individual
+interface ExamImage {
   id: number;
   image_url: string;
   page_number?: number | null;
@@ -71,8 +69,7 @@ interface ExamImage { // Definición para la imagen individual
 interface ExamPaper {
   id: number;
   filename: string | null;
-  // image_url: string | null; // Eliminado, ahora es una lista de ExamImage
-  images: ExamImage[]; // Array de objetos ExamImage
+  images: ExamImage[]; 
   status: string;
   user_id: string;
   created_at: string;
@@ -89,7 +86,7 @@ export default function DashboardPage() {
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  console.log("DEBUG: API_URL usada en Dashboard:", API_URL); // DEBUG API_URL
+  console.log("DEBUG: API_URL usada en Dashboard:", API_URL);
 
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
@@ -100,9 +97,8 @@ export default function DashboardPage() {
   const [papersError, setPapersError] = useState<string | null>(null);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxSlides, setLightboxSlides] = useState<{ src: string }[]>([]); // Para la lightbox
+  const [lightboxSlides, setLightboxSlides] = useState<{ src: string }[]>([]);
   const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
-
 
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [paperToDelete, setPaperToDelete] = useState<ExamPaper | null>(null);
@@ -118,8 +114,7 @@ export default function DashboardPage() {
   const [editingPaper, setEditingPaper] = useState<ExamPaper | null>(null);
   const [editableTranscriptionText, setEditableTranscriptionText] = useState('');
   const [isSavingTranscription, setIsSavingTranscription] = useState(false);
-  const [activeImagePageIndex, setActiveImagePageIndex] = useState(0); // Para el editor de múltiples imágenes
-
+  const [activeImagePageIndex, setActiveImagePageIndex] = useState(0);
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -132,49 +127,49 @@ export default function DashboardPage() {
   }, [user, session, authLoading, router]);
 
   const fetchUserProfile = useCallback(async () => {
-    console.log("DEBUG: fetchUserProfile - Access Token:", session?.access_token); // DEBUG TOKEN
+    console.log("DEBUG: fetchUserProfile - Access Token:", session?.access_token);
     if (!session?.access_token) { setProfileError('No hay token de acceso válido.'); return; }
     
     setIsLoadingProfile(true); setProfileError(null);
     try {
-      const response = await fetch(`${API_URL}/users/me/`, { // Con barra final
+      const response = await fetch(`${API_URL}/users/me/`, { 
         headers: { Authorization: `Bearer ${session.access_token}` } 
       });
-      console.log("DEBUG: fetchUserProfile - Response Status:", response.status); // DEBUG RESPONSE STATUS
+      console.log("DEBUG: fetchUserProfile - Response Status:", response.status);
       if (!response.ok) { 
         const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); 
-        console.error("DEBUG: fetchUserProfile - Error Data:", errData); // DEBUG ERROR DATA
+        console.error("DEBUG: fetchUserProfile - Error Data:", errData);
         throw new Error(errData.detail || `Error del servidor [${response.status}]`); 
       }
       const data = await response.json();
       setProfileData(data);
     } catch (e:any) { 
-      console.error("DEBUG: fetchUserProfile - Catch Error:", e); // DEBUG CATCH ERROR
+      console.error("DEBUG: fetchUserProfile - Catch Error:", e);
       setProfileError(e.message); 
     } 
     finally { setIsLoadingProfile(false); }
   }, [session]);
 
   const fetchExamPapers = useCallback(async (showNotification = false) => {
-    console.log("DEBUG: fetchExamPapers - Access Token:", session?.access_token); // DEBUG TOKEN
+    console.log("DEBUG: fetchExamPapers - Access Token:", session?.access_token);
     if (!session?.access_token) { setPapersError('No hay token de acceso válido.'); return; }
 
     setIsLoadingPapers(true); setPapersError(null);
     try {
-      const response = await fetch(`${API_URL}/exam_papers/`, { // Con barra final
+      const response = await fetch(`${API_URL}/exam_papers/`, { 
         headers: { Authorization: `Bearer ${session.access_token}` } 
       });
-      console.log("DEBUG: fetchExamPapers - Response Status:", response.status); // DEBUG RESPONSE STATUS
+      console.log("DEBUG: fetchExamPapers - Response Status:", response.status);
       if (!response.ok) { 
         const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); 
-        console.error("DEBUG: fetchExamPapers - Error Data:", errData); // DEBUG ERROR DATA
+        console.error("DEBUG: fetchExamPapers - Error Data:", errData);
         throw new Error(errData.detail || `Error del servidor [${response.status}]`); 
       }
       const data: ExamPaper[] = await response.json();
       setExamPapers(data);
       if (showNotification) { setSnackbarMessage('Lista de redacciones actualizada.'); setSnackbarSeverity('info'); setSnackbarOpen(true); }
     } catch (e:any) { 
-      console.error('DEBUG: fetchExamPapers - Catch Error:', e); // DEBUG CATCH ERROR
+      console.error('DEBUG: fetchExamPapers - Catch Error:', e);
       setPapersError(e.message); 
     } 
     finally { setIsLoadingPapers(false); }
@@ -186,9 +181,14 @@ export default function DashboardPage() {
 
   const openLightboxForPaper = (paper: ExamPaper) => {
     if (paper.images && paper.images.length > 0) {
-        const slides = paper.images.map(img => ({ src: img.image_url }));
+        const slides = paper.images.map(img => ({ src: img.image_url })).sort((a, b) => {
+            // Asumiendo que las URLs podrían tener page_X para ordenar, o usar page_number si estuviera en slides
+            const pageNumA = parseInt(a.src.match(/page_(\d+)/)?.[1] || '0');
+            const pageNumB = parseInt(b.src.match(/page_(\d+)/)?.[1] || '0');
+            return pageNumA - pageNumB;
+        });
         setLightboxSlides(slides);
-        setLightboxImageIndex(0); // Empezar por la primera imagen del paper
+        setLightboxImageIndex(0); 
         setLightboxOpen(true);
     }
   };
@@ -347,10 +347,9 @@ export default function DashboardPage() {
                           <TableCell>{getStatusDisplay(paper)}</TableCell>
                           <TableCell>{new Date(paper.created_at).toLocaleDateString()}</TableCell>
                           <TableCell align="center">
+                            {/* Mostrar la primera imagen de la lista 'images' si existe */}
                             {paper.images && paper.images.length > 0 && paper.images[0].image_url ? (
                               <IconButton onClick={() => openLightboxForPaper(paper)} size="small"><ImageIcon/></IconButton>
-                            ) : paper.image_url ? ( // Fallback para el modelo de datos antiguo si aún existe algún paper así
-                              <IconButton onClick={() => { setLightboxSlides([{src: paper.image_url!}]); setLightboxImageIndex(0); setLightboxOpen(true);}} size="small"><ImageIcon/></IconButton>
                             ) : null}
                           </TableCell>
                           
@@ -386,7 +385,6 @@ export default function DashboardPage() {
       <Lightbox open={lightboxOpen} close={() => setLightboxOpen(false)} slides={lightboxSlides} index={lightboxImageIndex} />
       <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Seguro que quieres eliminar '{paperToDelete?.filename||`ID: ${paperToDelete?.id}`}'?</Typography></DialogContent><DialogActions><Button onClick={handleCloseDeleteDialog} disabled={isDeleting}>Cancelar</Button><Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>{isDeleting?<CircularProgress size={20}/>:'Eliminar'}</Button></DialogActions></Dialog>
 
-      {/* Diálogo para Editar Transcripción (Refinado para Múltiples Imágenes) */}
       <Dialog
         open={openTranscriptionEditor}
         onClose={handleCloseTranscriptionEditor}
@@ -398,7 +396,7 @@ export default function DashboardPage() {
           Revisar y Editar Transcripción: {editingPaper?.filename || `ID: ${editingPaper?.id || '...'}`}
           {editingPaper && editingPaper.images && editingPaper.images.length > 1 && ` (Página ${activeImagePageIndex + 1} de ${editingPaper.images.length})`}
         </DialogTitle>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}> {/* Ajustar altura por padding de DialogContent */}
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}>
           <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 45%' }, display: 'flex', flexDirection: 'column', border: '1px solid', borderColor: 'divider', p: 0.5, overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
             {editingPaper && editingPaper.images && editingPaper.images.length > 0 ? (
               <>
@@ -411,13 +409,13 @@ export default function DashboardPage() {
                     aria-label="navegación de páginas de imagen"
                     sx={{ borderBottom: 1, borderColor: 'divider', mb: 0.5, flexShrink: 0 }}
                   >
-                    {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0)).map((img, index) => ( // Ordenar por page_number
+                    {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0)).map((img, index) => (
                       <Tab label={`Pág ${img.page_number || index + 1}`} key={img.id || index} sx={{minWidth: '60px'}}/>
                     ))}
                   </Tabs>
                 )}
                 <Box sx={{ flexGrow: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex]?.image_url ? ( // Asegurar que se accede a la imagen correcta después de ordenar
+                  {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex]?.image_url ? (
                     <img
                       src={editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex].image_url}
                       alt={`Página ${editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex].page_number || activeImagePageIndex + 1}`}
@@ -449,7 +447,6 @@ export default function DashboardPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo para Feedback de Corrección */}
       <Dialog open={openCorrectionDialog} onClose={handleCloseCorrectionDialog} maxWidth="lg" fullWidth PaperProps={{ sx: { maxHeight: '90vh'}}}>
         <DialogTitle>Feedback de Corrección</DialogTitle>
         <DialogContent dividers>
