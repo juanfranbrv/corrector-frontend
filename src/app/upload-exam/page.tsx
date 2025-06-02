@@ -26,7 +26,7 @@ import Grid from '@mui/material/Grid';
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const MAX_TOTAL_FILES = 5; // Límite opcional en el número de páginas/archivos
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL || 'http://127.0.0.1:8000';
 
 interface PreviewableFile {
   file: File;
