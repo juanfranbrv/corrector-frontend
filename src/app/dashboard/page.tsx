@@ -21,6 +21,9 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
+import Tabs from '@mui/material/Tabs'; // Asegúrate que esta importación esté si usas Tabs
+import Tab from '@mui/material/Tab';   // Asegúrate que esta importación esté si usas Tabs
+
 
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ImageIcon from '@mui/icons-material/Image';
@@ -34,7 +37,6 @@ import EditNoteIcon from '@mui/icons-material/EditNote';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-// import DialogContentText from '@mui/material/DialogContentText'; // No usado en el diálogo de edición
 import DialogTitle from '@mui/material/DialogTitle';
 import Snackbar from '@mui/material/Snackbar';
 
@@ -44,6 +46,7 @@ import 'yet-another-react-lightbox/styles.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// Asegúrate que esta URL sea la correcta para tu entorno Vercel (debería venir de .env.local o variables de Vercel)
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 interface UserProfileData {
@@ -56,10 +59,20 @@ interface UserProfileData {
   max_paper_quota: number;
   credits?: number;
 }
+
+// Interfaz actualizada para ExamPaper con múltiples imágenes
+interface ExamImage { // Definición para la imagen individual
+  id: number;
+  image_url: string;
+  page_number?: number | null;
+  exam_paper_id: number;
+}
+
 interface ExamPaper {
   id: number;
   filename: string | null;
-  image_url: string | null;
+  // image_url: string | null; // Eliminado, ahora es una lista de ExamImage
+  images: ExamImage[]; // Array de objetos ExamImage
   status: string;
   user_id: string;
   created_at: string;
@@ -76,6 +89,8 @@ export default function DashboardPage() {
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
 
+  console.log("DEBUG: API_URL usada en Dashboard:", API_URL); // DEBUG API_URL
+
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -85,7 +100,9 @@ export default function DashboardPage() {
   const [papersError, setPapersError] = useState<string | null>(null);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSlides, setLightboxSlides] = useState<{ src: string }[]>([]); // Para la lightbox
   const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
+
 
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [paperToDelete, setPaperToDelete] = useState<ExamPaper | null>(null);
@@ -101,6 +118,8 @@ export default function DashboardPage() {
   const [editingPaper, setEditingPaper] = useState<ExamPaper | null>(null);
   const [editableTranscriptionText, setEditableTranscriptionText] = useState('');
   const [isSavingTranscription, setIsSavingTranscription] = useState(false);
+  const [activeImagePageIndex, setActiveImagePageIndex] = useState(0); // Para el editor de múltiples imágenes
+
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -113,25 +132,51 @@ export default function DashboardPage() {
   }, [user, session, authLoading, router]);
 
   const fetchUserProfile = useCallback(async () => {
-    if (!session?.access_token) { setProfileError('No hay token.'); return; }
+    console.log("DEBUG: fetchUserProfile - Access Token:", session?.access_token); // DEBUG TOKEN
+    if (!session?.access_token) { setProfileError('No hay token de acceso válido.'); return; }
+    
     setIsLoadingProfile(true); setProfileError(null);
     try {
-      const response = await fetch(`${API_URL}/users/me/`, { headers: { Authorization: `Bearer ${session.access_token}` } });
-      if (!response.ok) { const errData = await response.json().catch(()=>({detail: response.statusText})); throw new Error(errData.detail || `Error servidor [${response.status}]`); }
-      setProfileData(await response.json());
-    } catch (e:any) { setProfileError(e.message); } 
+      const response = await fetch(`${API_URL}/users/me/`, { // Con barra final
+        headers: { Authorization: `Bearer ${session.access_token}` } 
+      });
+      console.log("DEBUG: fetchUserProfile - Response Status:", response.status); // DEBUG RESPONSE STATUS
+      if (!response.ok) { 
+        const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); 
+        console.error("DEBUG: fetchUserProfile - Error Data:", errData); // DEBUG ERROR DATA
+        throw new Error(errData.detail || `Error del servidor [${response.status}]`); 
+      }
+      const data = await response.json();
+      setProfileData(data);
+    } catch (e:any) { 
+      console.error("DEBUG: fetchUserProfile - Catch Error:", e); // DEBUG CATCH ERROR
+      setProfileError(e.message); 
+    } 
     finally { setIsLoadingProfile(false); }
   }, [session]);
 
   const fetchExamPapers = useCallback(async (showNotification = false) => {
-    if (!session?.access_token) { setPapersError('No hay token.'); return; }
+    console.log("DEBUG: fetchExamPapers - Access Token:", session?.access_token); // DEBUG TOKEN
+    if (!session?.access_token) { setPapersError('No hay token de acceso válido.'); return; }
+
     setIsLoadingPapers(true); setPapersError(null);
     try {
-      const response = await fetch(`${API_URL}/exam_papers/`, { headers: { Authorization: `Bearer ${session.access_token}` } });
-      if (!response.ok) { const errData = await response.json().catch(()=>({detail: response.statusText})); throw new Error(errData.detail || `Error servidor [${response.status}]`); }
-      setExamPapers(await response.json());
-      if (showNotification) { setSnackbarMessage('Lista actualizada.'); setSnackbarSeverity('info'); setSnackbarOpen(true); }
-    } catch (e:any) { console.error('Error fetch papers:', e); setPapersError(e.message); } 
+      const response = await fetch(`${API_URL}/exam_papers/`, { // Con barra final
+        headers: { Authorization: `Bearer ${session.access_token}` } 
+      });
+      console.log("DEBUG: fetchExamPapers - Response Status:", response.status); // DEBUG RESPONSE STATUS
+      if (!response.ok) { 
+        const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); 
+        console.error("DEBUG: fetchExamPapers - Error Data:", errData); // DEBUG ERROR DATA
+        throw new Error(errData.detail || `Error del servidor [${response.status}]`); 
+      }
+      const data: ExamPaper[] = await response.json();
+      setExamPapers(data);
+      if (showNotification) { setSnackbarMessage('Lista de redacciones actualizada.'); setSnackbarSeverity('info'); setSnackbarOpen(true); }
+    } catch (e:any) { 
+      console.error('DEBUG: fetchExamPapers - Catch Error:', e); // DEBUG CATCH ERROR
+      setPapersError(e.message); 
+    } 
     finally { setIsLoadingPapers(false); }
   }, [session]);
 
@@ -139,8 +184,14 @@ export default function DashboardPage() {
     if (user && session) { fetchUserProfile(); fetchExamPapers(); }
   }, [user, session, fetchUserProfile, fetchExamPapers]);
 
-  const openLightbox = (index: number) => { setLightboxImageIndex(index); setLightboxOpen(true); };
-  const lightboxSlides = examPapers.filter((p) => p.image_url).map((p) => ({ src: p.image_url! }));
+  const openLightboxForPaper = (paper: ExamPaper) => {
+    if (paper.images && paper.images.length > 0) {
+        const slides = paper.images.map(img => ({ src: img.image_url }));
+        setLightboxSlides(slides);
+        setLightboxImageIndex(0); // Empezar por la primera imagen del paper
+        setLightboxOpen(true);
+    }
+  };
 
   const handleClickOpenDeleteDialog = (paper: ExamPaper) => { setPaperToDelete(paper); setOpenDeleteDialog(true); };
   const handleCloseDeleteDialog = () => { setOpenDeleteDialog(false); setPaperToDelete(null); };
@@ -169,7 +220,7 @@ export default function DashboardPage() {
       setExamPapers((prev) => prev.map((p) => (p.id === paperId ? { ...p, ...updatedPaper } : p)));
       setSnackbarMessage(`Transcripción de '${updatedPaper.filename || 'ID:'+paperId}' completa.`); setSnackbarSeverity('success');
       fetchUserProfile();
-      handleOpenTranscriptionEditor(updatedPaper); // Abrir editor después de transcribir
+      handleOpenTranscriptionEditor(updatedPaper);
     } catch (e:any) { 
       console.error('Error transcribiendo:', e); setSnackbarMessage(`Error transcripción: ${e.message}`); setSnackbarSeverity('error'); 
       setExamPapers((prev) => prev.map((p) => p.id === paperId ? { ...p, status: 'error_transcription' } : p));
@@ -179,6 +230,7 @@ export default function DashboardPage() {
   const handleOpenTranscriptionEditor = (paper: ExamPaper) => {
     setEditingPaper(paper);
     setEditableTranscriptionText(paper.transcribed_text || '');
+    setActiveImagePageIndex(0); 
     setOpenTranscriptionEditor(true);
   };
   const handleCloseTranscriptionEditor = () => {
@@ -247,7 +299,6 @@ export default function DashboardPage() {
     <>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Paper elevation={3} sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {/* Header and User Info */}
           <Typography variant="h4" component="h1" gutterBottom align="center">Dashboard del Profesor</Typography>
           <Box sx={{ textAlign: 'center', mb: 2 }}>
             <Typography variant="body1">¡Bienvenido, {user.email}!</Typography>
@@ -260,7 +311,6 @@ export default function DashboardPage() {
           </Box>
           {profileError && !profileData && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>Error perfil: {profileError}</Alert>}
           
-          {/* Exam Papers Table */}
           <Box sx={{ mt: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}><Typography variant="h5" component="h2">Mis Redacciones</Typography><IconButton onClick={() => { fetchExamPapers(true); fetchUserProfile(); }} disabled={isLoadingPapers || isLoadingProfile} color="primary"><RefreshIcon /></IconButton></Box>
             {papersError && <Alert severity="error" sx={{ mb: 2 }}>Error redacciones: {papersError}</Alert>}
@@ -285,7 +335,7 @@ export default function DashboardPage() {
                     {examPapers.map((paper) => {
                       const isProcessingAny = isTranscribingId === paper.id || isCorrectingId === paper.id || isSavingTranscription;
                       const canTranscribeAI = (paper.status === 'uploaded' || paper.status === 'error_transcription') && !paper.transcribed_text;
-                      const canReviewEditTranscription = paper.status === 'transcribed' || paper.status === 'error_transcription' || (paper.status === 'uploaded' && paper.transcribed_text); // Permitir editar si hay texto, o si está transcrito
+                      const canReviewEditTranscription = paper.status === 'transcribed' || paper.status === 'error_transcription' || (paper.status === 'uploaded' && paper.transcribed_text);
 
                       const canCorrect = paper.status === 'transcribed' && !!paper.transcribed_text;
                       const canViewCorrection = paper.status === 'corrected' && !!paper.corrected_feedback;
@@ -296,14 +346,20 @@ export default function DashboardPage() {
                           <TableCell sx={{maxWidth:'150px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={paper.filename||undefined}>{paper.filename||'N/A'}</TableCell>
                           <TableCell>{getStatusDisplay(paper)}</TableCell>
                           <TableCell>{new Date(paper.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell align="center">{paper.image_url && (<IconButton onClick={()=>openLightbox(lightboxSlides.findIndex(s=>s.src===paper.image_url))} size="small"><ImageIcon/></IconButton>)}</TableCell>
+                          <TableCell align="center">
+                            {paper.images && paper.images.length > 0 && paper.images[0].image_url ? (
+                              <IconButton onClick={() => openLightboxForPaper(paper)} size="small"><ImageIcon/></IconButton>
+                            ) : paper.image_url ? ( // Fallback para el modelo de datos antiguo si aún existe algún paper así
+                              <IconButton onClick={() => { setLightboxSlides([{src: paper.image_url!}]); setLightboxImageIndex(0); setLightboxOpen(true);}} size="small"><ImageIcon/></IconButton>
+                            ) : null}
+                          </TableCell>
                           
                           <TableCell align="center">
                             {canReviewEditTranscription ? (
                               <Button size="small" variant="outlined" color="info" startIcon={<EditNoteIcon/>} onClick={()=>handleOpenTranscriptionEditor(paper)} disabled={isProcessingAny} sx={{minWidth:'120px'}}>Revisar</Button>
                             ) : canTranscribeAI ? (
                               <Button size="small" variant="outlined" startIcon={isTranscribingId===paper.id?<CircularProgress size={16}/>:<TextFieldsIcon/>} onClick={()=>handleTranscribe(paper.id)} disabled={isProcessingAny} sx={{minWidth:'120px'}}>{isTranscribingId===paper.id?'Procesando':'Transcribir IA'}</Button>
-                            ) : paper.transcribed_text !== null && paper.transcribed_text !== undefined ? ( // Si tiene texto pero no es 'transcribed' (ej. editado desde 'uploaded')
+                            ) : paper.transcribed_text !== null && paper.transcribed_text !== undefined ? (
                               <Button size="small" variant="outlined" color="info" startIcon={<EditNoteIcon/>} onClick={()=>handleOpenTranscriptionEditor(paper)} disabled={isProcessingAny} sx={{minWidth:'120px'}}>Editar</Button>
                             ): (<Typography variant="caption" color="textSecondary">-</Typography>)}
                           </TableCell>
@@ -330,30 +386,60 @@ export default function DashboardPage() {
       <Lightbox open={lightboxOpen} close={() => setLightboxOpen(false)} slides={lightboxSlides} index={lightboxImageIndex} />
       <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Seguro que quieres eliminar '{paperToDelete?.filename||`ID: ${paperToDelete?.id}`}'?</Typography></DialogContent><DialogActions><Button onClick={handleCloseDeleteDialog} disabled={isDeleting}>Cancelar</Button><Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>{isDeleting?<CircularProgress size={20}/>:'Eliminar'}</Button></DialogActions></Dialog>
 
-      {/* Diálogo para Editar Transcripción (Refinado) */}
+      {/* Diálogo para Editar Transcripción (Refinado para Múltiples Imágenes) */}
       <Dialog
         open={openTranscriptionEditor}
         onClose={handleCloseTranscriptionEditor}
         maxWidth="xl"
         fullWidth
-        PaperProps={{ sx: { height: '90vh', maxHeight: 'calc(100% - 64px)', width: '90vw', maxWidth: '1600px' } }}
+        PaperProps={{ sx: { height: '90vh', maxHeight: 'calc(100% - 64px)', width: '95vw', maxWidth: '1800px' } }}
       >
-        <DialogTitle sx={{ pb: 1 }}>Revisar y Editar Transcripción: {editingPaper?.filename || `ID: ${editingPaper?.id || '...'}`}</DialogTitle>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}> {/* Ajustar altura por padding */}
-          <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 50%' }, border: '1px solid', borderColor: 'divider', p: 0.5, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: { xs: '200px', md: 'auto' } }}>
-            {editingPaper?.image_url ? (
-              <img src={editingPaper.image_url} alt={`Redacción ${editingPaper.filename||''}`} style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', display:'block' }} />
-            ) : (<Typography>No hay imagen.</Typography>)}
+        <DialogTitle sx={{ pb: 1 }}>
+          Revisar y Editar Transcripción: {editingPaper?.filename || `ID: ${editingPaper?.id || '...'}`}
+          {editingPaper && editingPaper.images && editingPaper.images.length > 1 && ` (Página ${activeImagePageIndex + 1} de ${editingPaper.images.length})`}
+        </DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}> {/* Ajustar altura por padding de DialogContent */}
+          <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 45%' }, display: 'flex', flexDirection: 'column', border: '1px solid', borderColor: 'divider', p: 0.5, overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
+            {editingPaper && editingPaper.images && editingPaper.images.length > 0 ? (
+              <>
+                {editingPaper.images.length > 1 && (
+                  <Tabs
+                    value={activeImagePageIndex}
+                    onChange={(event, newValue) => setActiveImagePageIndex(newValue)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    aria-label="navegación de páginas de imagen"
+                    sx={{ borderBottom: 1, borderColor: 'divider', mb: 0.5, flexShrink: 0 }}
+                  >
+                    {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0)).map((img, index) => ( // Ordenar por page_number
+                      <Tab label={`Pág ${img.page_number || index + 1}`} key={img.id || index} sx={{minWidth: '60px'}}/>
+                    ))}
+                  </Tabs>
+                )}
+                <Box sx={{ flexGrow: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  {editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex]?.image_url ? ( // Asegurar que se accede a la imagen correcta después de ordenar
+                    <img
+                      src={editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex].image_url}
+                      alt={`Página ${editingPaper.images.sort((a,b) => (a.page_number || 0) - (b.page_number || 0))[activeImagePageIndex].page_number || activeImagePageIndex + 1}`}
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
+                    />
+                  ) : (
+                    <Typography>Selecciona una página.</Typography>
+                  )}
+                </Box>
+              </>
+            ) : (<Typography>No hay imágenes para esta redacción.</Typography>)}
           </Box>
-          <Box sx={{ flex: { xs: '1 1 auto', md: '1 1 50%' }, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
+          <Box sx={{ flex: { xs: '1 1 auto', md: '1 1 55%' }, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
             <TextField
               multiline
               fullWidth
               value={editableTranscriptionText}
               onChange={(e) => setEditableTranscriptionText(e.target.value)}
               variant="outlined"
-              placeholder="Edita la transcripción aquí..."
-              sx={{ flexGrow:1, '& .MuiInputBase-root':{height:'100%',display:'flex',flexDirection:'column'}, '& .MuiInputBase-inputMultiline':{flexGrow:1,height:'100% !important',overflowY:'auto !important',p:1.5,fontFamily:'monospace',fontSize:'0.95rem',lineHeight:1.6} }}
+              placeholder="Edita la transcripción completa aquí..."
+              helperText="La transcripción de todas las páginas se muestra aquí. Edita según sea necesario."
+              sx={{ flexGrow:1, '& .MuiInputBase-root':{height:'100%',display:'flex',flexDirection:'column', alignItems: 'flex-start'}, '& .MuiInputBase-inputMultiline':{flexGrow:1,height:'100% !important',overflowY:'auto !important',p:1.5,fontFamily:'monospace',fontSize:'0.95rem',lineHeight:1.6} }}
             />
           </Box>
         </DialogContent>
