@@ -1,5 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
+import { Mona_Sans } from "next/font/google"; // Importar Mona Sans
 import ThemeRegistry from "@/components/ThemeRegistry";
 import "./globals.css";
 import Link from 'next/link';
@@ -11,6 +12,8 @@ import Typography from '@mui/material/Typography';
 
 import { AuthProvider } from "@/context/AuthContext"; // Importar AuthProvider
 import NavUserStatus from "@/components/NavUserStatus"; // Crearemos este componente
+
+const monaSans = Mona_Sans({ weight: ['300', '400', '700'], subsets: ["latin"] }); // Configurar Mona Sans
 
 export const metadata: Metadata = {
   title: "English Corrector App",
@@ -24,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body>
+      <body className={monaSans.className}> {/* Aplicar la clase de Mona Sans */}
         <AuthProvider> {/* Envolver con AuthProvider */}
           <ThemeRegistry options={{ key: 'mui' }}>
             <AppBar position="static">

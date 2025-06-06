@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:all": "concurrently \"npm run dev\" \"cd F:\\_PROYECTOS\\corrector\\corrector-backend && python -m uvicorn main:app --reload\"",
+    "start:all": "powershell -ExecutionPolicy Bypass -File ../start-all.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -27,8 +29,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
+    "open": "^10.1.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

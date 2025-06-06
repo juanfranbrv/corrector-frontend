@@ -13,38 +13,27 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardActions from '@mui/material/CardActions';
 import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import TextField from '@mui/material/TextField';
 
 import RefreshIcon from '@mui/icons-material/Refresh';
-import ImageIcon from '@mui/icons-material/Image';
 import DeleteIcon from '@mui/icons-material/Delete';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import EditNoteIcon from '@mui/icons-material/EditNote';
-// import PagesIcon from '@mui/icons-material/Pages'; // Opcional para la columna Págs.
 
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Snackbar from '@mui/material/Snackbar';
-
-import Lightbox from 'yet-another-react-lightbox';
-import 'yet-another-react-lightbox/styles.css';
-
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 const API_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL || 'http://127.0.0.1:8000';
 
@@ -96,10 +85,6 @@ export default function DashboardPage() {
   const [isLoadingPapers, setIsLoadingPapers] = useState(false);
   const [papersError, setPapersError] = useState<string | null>(null);
 
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxSlides, setLightboxSlides] = useState<{ src: string }[]>([]);
-  const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
-
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [paperToDelete, setPaperToDelete] = useState<ExamPaper | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -135,8 +120,11 @@ export default function DashboardPage() {
       console.log("DEBUG: fetchUserProfile - Response Status:", response.status);
       if (!response.ok) { const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); console.error("DEBUG: fetchUserProfile - Error Data:", errData); throw new Error(errData.detail || `Error del servidor [${response.status}]`); }
       const data = await response.json(); setProfileData(data);
-    } catch (e:any) { console.error("DEBUG: fetchUserProfile - Catch Error:", e); setProfileError(e.message); } 
-    finally { setIsLoadingProfile(false); }
+    } catch (e: unknown) { 
+      const error = e instanceof Error ? e : new Error(String(e));
+      console.error("DEBUG: fetchUserProfile - Catch Error:", error); 
+      setProfileError(error.message); 
+    } finally { setIsLoadingProfile(false); }
   }, [session]);
 
   const fetchExamPapers = useCallback(async (showNotification = false) => {
@@ -146,28 +134,25 @@ export default function DashboardPage() {
     try {
       const response = await fetch(`${API_URL}/exam_papers/`, { headers: { Authorization: `Bearer ${session.access_token}` } });
       console.log("DEBUG: fetchExamPapers - Response Status:", response.status);
-      if (!response.ok) { const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); console.error("DEBUG: fetchExamPapers - Error Data:", errData); throw new Error(errData.detail || `Error del servidor [${response.status}]`); }
+      if (!response.ok) { 
+        const errData = await response.json().catch(()=>({detail: `Error ${response.status}: ${response.statusText}`})); 
+        console.error("DEBUG: fetchExamPapers - Error Data:", errData); 
+        throw new Error(errData.detail || `Error del servidor [${response.status}]`); 
+      }
       const data: ExamPaper[] = await response.json();
       console.log("DEBUG: Datos de ExamPapers recibidos:", data); // <--- CONSOLE.LOG AÑADIDO AQUÍ
       setExamPapers(data);
       if (showNotification) { setSnackbarMessage('Lista de redacciones actualizada.'); setSnackbarSeverity('info'); setSnackbarOpen(true); }
-    } catch (e:any) { console.error('DEBUG: fetchExamPapers - Catch Error:', e); setPapersError(e.message); } 
-    finally { setIsLoadingPapers(false); }
+    } catch (e: unknown) { 
+      const error = e instanceof Error ? e : new Error(String(e));
+      console.error('DEBUG: fetchExamPapers - Catch Error:', error); 
+      setPapersError(error.message); 
+    } finally { setIsLoadingPapers(false); }
   }, [session]);
 
   useEffect(() => {
     if (user && session) { fetchUserProfile(); fetchExamPapers(); }
   }, [user, session, fetchUserProfile, fetchExamPapers]);
-
-  const openLightboxForPaper = (paper: ExamPaper) => {
-    if (paper.images && paper.images.length > 0) {
-      const sortedImages = [...paper.images].sort((a, b) => (a.page_number || 0) - (b.page_number || 0));
-      const slides = sortedImages.map(img => ({ src: img.image_url }));
-      setLightboxSlides(slides);
-      setLightboxImageIndex(0);
-      setLightboxOpen(true);
-    }
-  };
 
   const handleClickOpenDeleteDialog = (paper: ExamPaper) => { setPaperToDelete(paper); setOpenDeleteDialog(true); };
   const handleCloseDeleteDialog = () => { setOpenDeleteDialog(false); setPaperToDelete(null); };
@@ -181,8 +166,11 @@ export default function DashboardPage() {
       setSnackbarMessage('Redacción eliminada.'); setSnackbarSeverity('success');
       setExamPapers((p) => p.filter((i) => i.id !== paperToDelete.id));
       fetchUserProfile();
-    } catch (e:any) { setSnackbarMessage(`Error al eliminar: ${e.message}`); setSnackbarSeverity('error'); } 
-    finally { setIsDeleting(false); handleCloseDeleteDialog(); setSnackbarOpen(true); }
+    } catch (e: unknown) { 
+      const error = e instanceof Error ? e : new Error(String(e));
+      setSnackbarMessage(`Error al eliminar: ${error.message}`); 
+      setSnackbarSeverity('error'); 
+    } finally { setIsDeleting(false); handleCloseDeleteDialog(); setSnackbarOpen(true); }
   };
 
   const handleTranscribe = async (paperId: number) => {
@@ -197,8 +185,11 @@ export default function DashboardPage() {
       setSnackbarMessage(`Transcripción de '${updatedPaper.filename || 'ID:'+paperId}' completa.`); setSnackbarSeverity('success');
       fetchUserProfile();
       handleOpenTranscriptionEditor(updatedPaper);
-    } catch (e:any) { 
-      console.error('Error transcribiendo:', e); setSnackbarMessage(`Error transcripción: ${e.message}`); setSnackbarSeverity('error'); 
+    } catch (e: unknown) { 
+      const error = e instanceof Error ? e : new Error(String(e));
+      console.error('Error transcribiendo:', error); 
+      setSnackbarMessage(`Error transcripción: ${error.message}`); 
+      setSnackbarSeverity('error'); 
       setExamPapers((prev) => prev.map((p) => p.id === paperId ? { ...p, status: 'error_transcription' } : p));
     } finally { setIsTranscribingId(null); setSnackbarOpen(true); }
   };
@@ -227,8 +218,12 @@ export default function DashboardPage() {
       setExamPapers((prev) => prev.map((p) => (p.id === editingPaper.id ? { ...p, ...updatedPaper } : p)));
       setSnackbarMessage('Transcripción actualizada.'); setSnackbarSeverity('success');
       handleCloseTranscriptionEditor();
-    } catch (e:any) { console.error('Error guardando transcripción:', e); setSnackbarMessage(`Error al guardar: ${e.message}`); setSnackbarSeverity('error'); }
-    finally { setIsSavingTranscription(false); setSnackbarOpen(true); }
+    } catch (e: unknown) { 
+      const error = e instanceof Error ? e : new Error(String(e));
+      console.error('Error guardando transcripción:', error); 
+      setSnackbarMessage(`Error al guardar: ${error.message}`); 
+      setSnackbarSeverity('error'); 
+    } finally { setIsSavingTranscription(false); setSnackbarOpen(true); }
   };
 
   const handleCorrect = async (paperId: number) => {
@@ -242,8 +237,10 @@ export default function DashboardPage() {
       setExamPapers((prev) => prev.map((p) => (p.id === paperId ? { ...p, ...updatedPaper } : p)));
       setSnackbarMessage(`Corrección de '${updatedPaper.filename || 'ID:'+paperId}' completa.`); setSnackbarSeverity('success');
       fetchUserProfile();
-    } catch (e:any) { 
-      console.error('Error corrigiendo:', e); setSnackbarMessage(`Error corrección: ${e.message}`); setSnackbarSeverity('error'); 
+    } catch (e: unknown) { 
+      const error = e instanceof Error ? e : new Error(String(e));
+      console.error('Error corrigiendo:', error); 
+      setSnackbarMessage(`Error corrección: ${error.message}`); 
       setExamPapers((prev) => prev.map((p) => p.id === paperId ? { ...p, status: 'error_correction' } : p));
     } finally { setIsCorrectingId(null); setSnackbarOpen(true); }
   };
@@ -295,94 +292,61 @@ export default function DashboardPage() {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}><Typography variant="h5" component="h2">Mis Redacciones</Typography><IconButton onClick={() => { fetchExamPapers(true); fetchUserProfile(); }} disabled={isLoadingPapers || isLoadingProfile} color="primary"><RefreshIcon /></IconButton></Box>
             {papersError && <Alert severity="error" sx={{ mb: 2 }}>Error redacciones: {papersError}</Alert>}
             {isLoadingPapers && !papersError && <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}><CircularProgress /></Box>}
-            {!isLoadingPapers && examPapers.length === 0 && !papersError && (<Typography sx={{ textAlign: 'center', color: 'text.secondary', my: 3 }}>No has subido redacciones. <Link href="/upload-exam" style={{ color: 'primary.main' }}>Sube una</Link>.</Typography>)}
+            {!isLoadingPapers && examPapers.length === 0 && !papersError && (
+              <Typography sx={{ textAlign: 'center', color: 'text.secondary', my: 3 }}>No has subido redacciones. <Link href="/upload-exam" style={{ color: 'primary.main' }}>Sube una</Link>.</Typography>
+            )}
             {!isLoadingPapers && examPapers.length > 0 && (
-              <TableContainer component={Paper} elevation={2}>
-                <Table sx={{ minWidth: 950 }} aria-label="tabla de redacciones">
-                  <TableHead sx={{ backgroundColor: 'primary.dark' }}>
-                    <TableRow>
-                      <TableCell sx={{color:'white',fontWeight:'bold'}}>ID</TableCell>
-                      <TableCell sx={{color:'white',fontWeight:'bold'}}>Nombre</TableCell>
-                      <TableCell sx={{color:'white',fontWeight:'bold'}}>Estado</TableCell>
-                      <TableCell sx={{color:'white',fontWeight:'bold'}}>Subido</TableCell>
-                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Págs.</TableCell> {/* Columna para Imagen/Páginas */}
-                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Transcripción</TableCell>
-                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Corrección</TableCell>
-                      <TableCell sx={{color:'white',fontWeight:'bold',textAlign:'center'}}>Acciones</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {examPapers.map((paper) => {
-                      const isProcessingAny = isTranscribingId === paper.id || isCorrectingId === paper.id || isSavingTranscription;
-                      const canTranscribeAI = (paper.status === 'uploaded' || paper.status === 'error_transcription') && (!paper.transcribed_text || paper.transcribed_text.trim() === "");
-                      const canReviewEditTranscription = paper.status === 'transcribed' || paper.status === 'error_transcription' || (paper.status === 'uploaded' && paper.transcribed_text && paper.transcribed_text.trim() !== "");
-
-                      const canCorrect = paper.status === 'transcribed' && !!paper.transcribed_text && paper.transcribed_text.trim() !== "";
-                      const canViewCorrection = paper.status === 'corrected' && !!paper.corrected_feedback;
-                      
-                      // Lógica para la columna "Págs."
-                      const sortedPaperImages = paper.images && paper.images.length > 0 ?
-                                             [...paper.images].sort((a, b) => (a.page_number || 0) - (b.page_number || 0))
-                                             : [];
-                      const firstImage = sortedPaperImages.length > 0 ? sortedPaperImages[0] : null;
-                      const pageCount = sortedPaperImages.length;
-
-                      return (
-                        <TableRow key={paper.id} hover>
-                          <TableCell>{paper.id}</TableCell>
-                          <TableCell sx={{maxWidth:'150px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={paper.filename||undefined}>{paper.filename||'N/A'}</TableCell>
-                          <TableCell>{getStatusDisplay(paper)}</TableCell>
-                          <TableCell>{new Date(paper.created_at).toLocaleDateString()}</TableCell>
-                          {/* Celda para Páginas/Imagen */}
-                          <TableCell align="center">
-                            {pageCount > 0 && firstImage?.image_url ? (
-                              <IconButton 
-                                onClick={() => openLightboxForPaper(paper)} 
-                                size="small" 
-                                title={`Ver ${pageCount} página(s)`}
-                              >
-                                <ImageIcon />
-                                {pageCount > 1 && (
-                                  <Typography variant="caption" component="span" sx={{ ml: 0.5, verticalAlign: 'super', fontWeight:'bold' }}>
-                                    ({pageCount})
-                                  </Typography>
-                                )}
-                              </IconButton>
-                            ) : (
-                              pageCount > 0 ? <Typography variant="caption" color="textSecondary">Sin URL</Typography> : "-"
-                            )}
-                          </TableCell>
-                          
-                          <TableCell align="center">
-                            {canReviewEditTranscription ? (
-                              <Button size="small" variant="outlined" color="info" startIcon={<EditNoteIcon/>} onClick={()=>handleOpenTranscriptionEditor(paper)} disabled={isProcessingAny} sx={{minWidth:'120px'}}>Revisar</Button>
-                            ) : canTranscribeAI ? (
-                              <Button size="small" variant="outlined" startIcon={isTranscribingId===paper.id?<CircularProgress size={16}/>:<TextFieldsIcon/>} onClick={()=>handleTranscribe(paper.id)} disabled={isProcessingAny || paper.images.length === 0} sx={{minWidth:'120px'}}>{isTranscribingId===paper.id?'Procesando':'Transcribir IA'}</Button>
-                            ) : (<Typography variant="caption" color="textSecondary">-</Typography>)}
-                          </TableCell>
-
-                          <TableCell align="center">
-                            {canViewCorrection ? (
-                              <IconButton size="small" color="success" onClick={()=>handleOpenCorrectionDialog(paper.corrected_feedback)}><VisibilityIcon/></IconButton>
-                            ) : (
-                              <Button size="small" variant="outlined" color="secondary" startIcon={isCorrectingId===paper.id?<CircularProgress size={16}/>:<SpellcheckIcon/>} onClick={()=>handleCorrect(paper.id)} disabled={!canCorrect || isProcessingAny} sx={{minWidth:'120px'}}>{isCorrectingId===paper.id?'Procesando':'Corregir IA'}</Button>
-                            )}
-                          </TableCell>
-                          <TableCell align="center"><IconButton size="small" color="error" onClick={()=>handleClickOpenDeleteDialog(paper)} disabled={(isDeleting&&paperToDelete?.id===paper.id)||isProcessingAny}><DeleteIcon/></IconButton></TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'flex-start' }}>
+                {examPapers.map((paper) => {
+                  const isProcessingAny = isTranscribingId === paper.id || isCorrectingId === paper.id || isSavingTranscription;
+                  const canTranscribeAI = (paper.status === 'uploaded' || paper.status === 'error_transcription') && (!paper.transcribed_text || paper.transcribed_text.trim() === "");
+                  const canReviewEditTranscription = paper.status === 'transcribed' || paper.status === 'error_transcription' || (paper.status === 'uploaded' && paper.transcribed_text && paper.transcribed_text.trim() !== "");
+                  const canCorrect = paper.status === 'transcribed' && !!paper.transcribed_text && paper.transcribed_text.trim() !== "";
+                  const canViewCorrection = paper.status === 'corrected' && !!paper.corrected_feedback;
+                  const extract = paper.transcribed_text ? paper.transcribed_text.slice(0, 120) + (paper.transcribed_text.length > 120 ? '...' : '') : 'Sin transcripción.';
+                  return (
+                    <Card key={paper.id} elevation={2} sx={{ width: 260, minHeight: 180, m: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom noWrap>{paper.filename || `Redacción ${paper.id}`}</Typography>
+                        <Typography variant="caption" color="text.secondary">Estado: {getStatusDisplay(paper)}</Typography><br/>
+                        <Typography variant="caption" color="text.secondary">Subido: {new Date(paper.created_at).toLocaleDateString()}</Typography>
+                        <Typography variant="body2" sx={{ mt: 1, fontFamily: 'monospace', whiteSpace: 'pre-line', fontSize: '0.95em', minHeight: 32, maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {extract}
+                        </Typography>
+                      </CardContent>
+                      <CardActions sx={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, px: 2, pb: 1 }}>
+                        <Button size="small" variant="contained" color="primary" component={Link} href={`/essay/${paper.id}`} sx={{ minWidth: 0, flex: 1 }}>Ver / Editar</Button>
+                        {canReviewEditTranscription ? (
+                          <Button size="small" variant="outlined" color="info" startIcon={<EditNoteIcon/>} onClick={()=>handleOpenTranscriptionEditor(paper)} disabled={isProcessingAny} sx={{ minWidth: 0 }}>Revisar</Button>
+                        ) : canTranscribeAI ? (
+                          <Button size="small" variant="outlined" startIcon={isTranscribingId===paper.id?<CircularProgress size={16}/>:<TextFieldsIcon/>} onClick={()=>handleTranscribe(paper.id)} disabled={isProcessingAny || paper.images.length === 0} sx={{ minWidth: 0 }}>{isTranscribingId===paper.id?'Procesando':'Transcribir IA'}</Button>
+                        ) : null}
+                        {canViewCorrection ? (
+                          <IconButton size="small" color="success" onClick={()=>handleOpenCorrectionDialog(paper.corrected_feedback)}><VisibilityIcon/></IconButton>
+                        ) : (
+                          <Button size="small" variant="outlined" color="secondary" startIcon={isCorrectingId===paper.id?<CircularProgress size={16}/>:<SpellcheckIcon/>} onClick={()=>handleCorrect(paper.id)} disabled={!canCorrect || isProcessingAny} sx={{ minWidth: 0 }}>{isCorrectingId===paper.id?'Procesando':'Corregir'}</Button>
+                        )}
+                        <IconButton size="small" color="error" onClick={()=>handleClickOpenDeleteDialog(paper)} disabled={(isDeleting&&paperToDelete?.id===paper.id)||isProcessingAny}><DeleteIcon/></IconButton>
+                      </CardActions>
+                    </Card>
+                  );
+                })}
+              </Box>
             )}
           </Box>
         </Paper>
       </Container>
-
-      <Lightbox open={lightboxOpen} close={() => setLightboxOpen(false)} slides={lightboxSlides} index={lightboxImageIndex} />
-      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Seguro que quieres eliminar '{paperToDelete?.filename||`ID: ${paperToDelete?.id}`}'?</Typography></DialogContent><DialogActions><Button onClick={handleCloseDeleteDialog} disabled={isDeleting}>Cancelar</Button><Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>{isDeleting?<CircularProgress size={20}/>:'Eliminar'}</Button></DialogActions></Dialog>
-
+      {/* Diálogos y snackbars */}
+      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
+        <DialogContent>
+          <Typography>¿Seguro que quieres eliminar {paperToDelete?.filename || `ID: ${paperToDelete?.id}`}?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} disabled={isDeleting}>Cancelar</Button>
+          <Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>{isDeleting?<CircularProgress size={20}/>:'Eliminar'}</Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={openTranscriptionEditor}
         onClose={handleCloseTranscriptionEditor}
@@ -442,17 +406,15 @@ export default function DashboardPage() {
           <Button onClick={handleSaveEditedTranscription} variant="contained" disabled={isSavingTranscription} startIcon={isSavingTranscription?<CircularProgress size={16}/>:null}>{isSavingTranscription?'Guardando...':'Guardar Cambios'}</Button>
         </DialogActions>
       </Dialog>
-
       <Dialog open={openCorrectionDialog} onClose={handleCloseCorrectionDialog} maxWidth="lg" fullWidth PaperProps={{ sx: { maxHeight: '90vh'}}}>
         <DialogTitle>Feedback de Corrección</DialogTitle>
         <DialogContent dividers>
-          <Box sx={{ '& h1':{typography:'h4',mt:2,mb:1}, '& h2':{typography:'h5',mt:2,mb:1}, '& h3':{typography:'h6',mt:2,mb:0.5}, '& p':{typography:'body1',mb:1,lineHeight:1.6}, '& ul':{pl:3,mb:1,listStylePosition:'outside'}, '& li':{mb:0.75,lineHeight:1.5}, '& strong':{fontWeight:'bold'}, '& blockquote':{borderLeft:'4px solid',borderColor:'divider',pl:2,ml:0,my:1,fontStyle:'italic',color:'text.secondary'}, '& pre':{backgroundColor:'action.hover',p:1.5,borderRadius:1,overflowX:'auto',my:1,fontSize:'0.9em'}, '& code':{fontFamily:'monospace',backgroundColor:'action.selected',px:0.5,py:0.25,borderRadius:0.5,fontSize:'0.9em'} }}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentCorrectionFeedback}</ReactMarkdown>
+          <Box sx={{ "& h1":{typography:'h4',mt:2,mb:1}, "& h2":{typography:'h5',mt:2,mb:1}, "& h3":{typography:'h6',mt:2,mb:0.5}, "& p":{typography:'body1',mb:1,lineHeight:1.6}, "& ul":{pl:3,mb:1,listStylePosition:'outside'}, "& li":{mb:0.75,lineHeight:1.5}, "& strong":{fontWeight:'bold'}, "& blockquote":{borderLeft:'4px solid',borderColor:'divider',pl:2,ml:0,my:1,fontStyle:'italic',color:'text.secondary'}, "& pre":{backgroundColor:'action.hover',p:1.5,borderRadius:1,overflowX:'auto',my:1,fontSize:'0.9em'}, "& code":{fontFamily:'monospace',backgroundColor:'action.selected',px:0.5,py:0.25,borderRadius:0.5,fontSize:'0.9em'} }}>
+            {/* ...contenido de feedback... */}
           </Box>
         </DialogContent>
         <DialogActions><Button onClick={handleCloseCorrectionDialog}>Cerrar</Button></DialogActions>
       </Dialog>
-
       <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{vertical:'bottom',horizontal:'center'}}><Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{width:'100%'}} variant="filled">{snackbarMessage}</Alert></Snackbar>
     </>
   );
