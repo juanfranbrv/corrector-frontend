@@ -304,7 +304,7 @@ export default function DashboardPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3, md: 4 }, boxShadow: 'none', border: 'none', bgcolor: 'transparent' }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">Dashboard del Profesor</Typography>
         <Box sx={{ textAlign: 'center', mb: 2 }}>
           <Typography variant="body1">¡Bienvenido, {user.email}!</Typography>
@@ -330,7 +330,7 @@ export default function DashboardPage() {
                 const isProcessingAny = isTranscribingId === paper.id || isCorrectingId === paper.id || isSavingTranscription;
 
                 return (
-                  <Card key={paper.id} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Card key={paper.id} sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1.5px solid', borderColor: 'grey.400', boxShadow: 'none' }}>
                     <Box sx={{ p: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                       <Typography variant="h6" component="div" sx={{ mb: 1 }}>
                         {paper.filename || `Redacción ${paper.id}`}
@@ -347,7 +347,8 @@ export default function DashboardPage() {
                       overflow: 'hidden',
                       p: 2,
                       '& pre': {
-                        fontFamily: 'inherit',
+                        fontFamily: 'monospace',
+                        fontSize: '0.92rem',
                         whiteSpace: 'pre-wrap',
                         lineHeight: '1.4',
                         margin: 0
@@ -363,39 +364,65 @@ export default function DashboardPage() {
                           : 'Sin texto transcrito'}
                       </pre>
                     </CardContent>
-                    <CardActions sx={{ p: 2, pt: 1 }}>
+                    <CardActions sx={{ p: 2, pt: 3 }}>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
-                        <ButtonGroup size="small">
-                          <Button
-                            startIcon={<TextFieldsIcon />}
-                            onClick={() => handleOpenTranscriptionEditor(paper)}
-                            disabled={isProcessingAny}
-                          >
-                            Revisar
-                          </Button>
-                          <Button
-                            startIcon={<SpellcheckIcon />}
-                            onClick={() => handleCorrect(paper.id)}
-                            disabled={isProcessingAny}
-                          >
-                            Corregir
-                          </Button>
-                        </ButtonGroup>
+                        {/* Botón: Gestionar páginas */}
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          title="Gestionar páginas"
+                          disabled={paper.status !== 'uploaded'}
+                        >
+                          <RefreshIcon />
+                        </IconButton>
+                        {/* Botón: Transcribir */}
+                        <IconButton
+                          onClick={() => handleTranscribe(paper.id)}
+                          size="small"
+                          color="primary"
+                          title="Transcribir"
+                          disabled={paper.status !== 'uploaded'}
+                        >
+                          <TextFieldsIcon />
+                        </IconButton>
+                        {/* Botón: Revisar transcripción */}
+                        <IconButton
+                          onClick={() => handleOpenTranscriptionEditor(paper)}
+                          size="small"
+                          color="primary"
+                          title="Revisar transcripción"
+                          disabled={paper.status !== 'transcribed'}
+                        >
+                          <SpellcheckIcon />
+                        </IconButton>
+                        {/* Botón: Corregir */}
+                        <IconButton
+                          onClick={() => handleCorrect(paper.id)}
+                          size="small"
+                          color="primary"
+                          title="Corregir"
+                          disabled={paper.status !== 'transcribed'}
+                        >
+                          <AccountBalanceWalletIcon />
+                        </IconButton>
+                        {/* Botón: Abrir */}
                         <IconButton
                           component={Link}
                           href={`/essay/${paper.id}`}
                           size="small"
                           color="primary"
                           title="Abrir"
+                          disabled={paper.status !== 'transcribed' && paper.status !== 'corrected'}
                         >
                           <LaunchIcon />
                         </IconButton>
+                        {/* Botón: Borrar */}
                         <IconButton
                           onClick={() => handleClickOpenDeleteDialog(paper)}
                           size="small"
                           color="error"
                           title="Eliminar"
-                          sx={{ ml: 'auto' }}
+                          disabled={false} // Siempre activo
                         >
                           <DeleteIcon />
                         </IconButton>
@@ -431,7 +458,7 @@ export default function DashboardPage() {
           {sortedEditingPaperImages.length > 1 && ` (Página ${activeImagePageIndex + 1} de ${sortedEditingPaperImages.length})`}
         </DialogTitle>
         <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}>
-          <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 45%' }, display: 'flex', flexDirection: 'column', border: '1px solid', borderColor: 'divider', p: 0.5, overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
+          <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 45%' }, display: 'flex', flexDirection: 'column', p: 0.5, overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
             {sortedEditingPaperImages.length > 0 ? (
               <>
                 {sortedEditingPaperImages.length > 1 && (
