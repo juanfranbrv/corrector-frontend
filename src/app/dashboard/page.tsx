@@ -405,17 +405,6 @@ export default function DashboardPage() {
                         >
                           <AccountBalanceWalletIcon />
                         </IconButton>
-                        {/* Botón: Abrir */}
-                        <IconButton
-                          component={Link}
-                          href={`/essay/${paper.id}`}
-                          size="small"
-                          color="primary"
-                          title="Abrir"
-                          disabled={paper.status !== 'transcribed' && paper.status !== 'corrected'}
-                        >
-                          <LaunchIcon />
-                        </IconButton>
                         {/* Botón: Borrar */}
                         <IconButton
                           onClick={() => handleClickOpenDeleteDialog(paper)}
@@ -425,6 +414,18 @@ export default function DashboardPage() {
                           disabled={false} // Siempre activo
                         >
                           <DeleteIcon />
+                        </IconButton>
+                        <Box sx={{ flexGrow: 1 }} />
+                        {/* Botón: Abrir (alineado a la derecha) */}
+                        <IconButton
+                          component={Link}
+                          href={`/essay/${paper.id}`}
+                          size="small"
+                          color="primary"
+                          title="Abrir"
+                          disabled={paper.status !== 'transcribed' && paper.status !== 'corrected'}
+                        >
+                          <LaunchIcon />
                         </IconButton>
                       </Stack>
                     </CardActions>
