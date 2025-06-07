@@ -1,7 +1,7 @@
 // src/app/upload-exam/page.tsx
 'use client';
 
-import React, { useState, ChangeEvent, FormEvent, useEffect } from 'react';
+import React, { useState, ChangeEvent, FormEvent, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
@@ -50,7 +50,7 @@ interface PreviewableFile {
 
 type ImageItem = ExistingImage | PreviewableFile;
 
-export default function UploadExamPage() {
+function ClientOnlyUploadExamPage() {
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -450,5 +450,13 @@ export default function UploadExamPage() {
         styles={{ container: { backgroundColor: 'rgba(0,0,0,0.95)' } }}
       />
     </Container>
+  );
+}
+
+export default function UploadExamPage() {
+  return (
+    <Suspense fallback={<div style={{textAlign:'center',marginTop:40}}><CircularProgress /><br/>Cargando...</div>}>
+      <ClientOnlyUploadExamPage />
+    </Suspense>
   );
 }
