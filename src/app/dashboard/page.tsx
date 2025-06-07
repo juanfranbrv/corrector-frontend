@@ -33,6 +33,7 @@ import TextFieldsIcon from '@mui/icons-material/TextFields';
 import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import LaunchIcon from '@mui/icons-material/Launch';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -115,6 +116,10 @@ export default function DashboardPage() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] =
     useState<'success' | 'error' | 'info'>('success');
+
+  // Estado para edición de título
+  const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
+  const [tempTitle, setTempTitle] = useState<string>('');
 
   useEffect(() => {
     if (authLoading) return;
@@ -259,6 +264,43 @@ export default function DashboardPage() {
     setSnackbarOpen(false);
   };
 
+  const handleEditTitle = (paper: ExamPaper) => {
+    setEditingTitleId(paper.id);
+    setTempTitle(paper.filename || '');
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempTitle(e.target.value);
+  };
+
+  const handleTitleBlurOrSave = async (paper: ExamPaper) => {
+    if (tempTitle.trim() && tempTitle !== paper.filename) {
+      try {
+        const response = await fetch(`${API_URL}/exam_papers/${paper.id}/filename`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ filename: tempTitle }),
+        });
+        const updated = await response.json();
+        if (!response.ok) throw new Error(updated?.detail || 'Error actualizando título');
+        setExamPapers((prev) =>
+          prev.map((p) => (p.id === paper.id ? { ...p, filename: tempTitle } : p))
+        );
+        setSnackbarMessage('Título actualizado');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+      } catch (e: any) {
+        setSnackbarMessage('Error al actualizar título: ' + e.message);
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    }
+    setEditingTitleId(null);
+  };
+
   if (authLoading) return (<Box sx={{display:'flex',justifyContent:'center',alignItems:'center',height:'calc(100vh - 64px)'}}><CircularProgress size={60}/><Typography sx={{ml:2}}>Cargando...</Typography></Box>);
   if (!user || !session) return null;
 
@@ -328,12 +370,39 @@ export default function DashboardPage() {
             <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
               {sortedExamPapers.map((paper) => {
                 const isProcessingAny = isTranscribingId === paper.id || isCorrectingId === paper.id || isSavingTranscription;
+                // Color de fondo azul sutil para estado 'transcribed' y verde sutil para 'corrected'
+                const cardBgColor = paper.status === 'transcribed' ? '#ebfcff' : paper.status === 'corrected' ? '#edffeb' : 'background.paper';
 
                 return (
-                  <Card key={paper.id} sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1.5px solid', borderColor: 'grey.400', boxShadow: 'none' }}>
+                  <Card key={paper.id} sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1.5px solid', borderColor: 'grey.400', boxShadow: 'none', bgcolor: cardBgColor }}>
                     <Box sx={{ p: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                      <Typography variant="h6" component="div" sx={{ mb: 1 }}>
-                        {paper.filename || `Redacción ${paper.id}`}
+                      <Typography
+                        variant="h6"
+                        component="div"
+                        sx={{ mb: 1, cursor: 'pointer', minHeight: '32px', display: 'flex', alignItems: 'center' }}
+                        onClick={() => handleEditTitle(paper)}
+                      >
+                        {editingTitleId === paper.id ? (
+                          <TextField
+                            value={tempTitle}
+                            onChange={handleTitleChange}
+                            onBlur={() => handleTitleBlurOrSave(paper)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                (e.target as HTMLInputElement).blur();
+                              } else if (e.key === 'Escape') {
+                                setEditingTitleId(null);
+                              }
+                            }}
+                            size="small"
+                            autoFocus
+                            variant="standard"
+                            sx={{ fontSize: '1.1rem', minWidth: '120px' }}
+                            inputProps={{ maxLength: 60 }}
+                          />
+                        ) : (
+                          paper.filename || `Redacción ${paper.id}`
+                        )}
                       </Typography>
                       <Chip
                         label={getStatusText(paper.status)}
@@ -366,14 +435,15 @@ export default function DashboardPage() {
                     </CardContent>
                     <CardActions sx={{ p: 2, pt: 3 }}>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
-                        {/* Botón: Gestionar páginas */}
+                        {/* Botón: Gestionar páginas (nuevo) */}
                         <IconButton
+                          component={Link}
+                          href={`/upload-exam?id=${paper.id}`}
                           size="small"
                           color="primary"
-                          title="Gestionar páginas"
-                          disabled={paper.status !== 'uploaded'}
+                          title="Gestionar páginas (añadir, eliminar, reordenar)"
                         >
-                          <RefreshIcon />
+                          <CloudUploadIcon />
                         </IconButton>
                         {/* Botón: Transcribir */}
                         <IconButton
@@ -519,3 +589,6 @@ export default function DashboardPage() {
     </Container>
   );
 }
+
+// Si se quiere editar una redacción existente, se puede acceder a /upload-exam?id=ID
+// El componente detectará el query param y cargará los datos del ensayo existente para edición.

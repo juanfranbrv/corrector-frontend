@@ -13,6 +13,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@hello-pangea/dnd": "^18.0.1",
     "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
     "@supabase/supabase-js": "^2.49.8",
@@ -28,6 +29,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
+    "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-dom": "^19",
     "concurrently": "^9.1.2",
     "eslint": "^9",
