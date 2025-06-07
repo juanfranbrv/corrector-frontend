@@ -193,7 +193,15 @@ function ClientOnlyUploadExamPage() {
           });
         }
         setSuccessMessage('Redacción actualizada correctamente. Redirigiendo...');
-        setTimeout(() => router.push('/dashboard'), 2000);
+        // Redirigir según origen: dashboard o página del ensayo
+        const from = searchParams.get('from');
+        setTimeout(() => {
+          if (from === 'essay' && paperId) {
+            router.push(`/essay/${paperId}`);
+          } else {
+            router.push('/dashboard');
+          }
+        }, 2000);
       } else {
         // --- MODO CREACIÓN (igual que antes) ---
         const formData = new FormData();

@@ -22,8 +22,7 @@ import {
   Tab,
   TextField,
   Chip,
-  Stack,
-  ButtonGroup
+  Stack
 } from '@mui/material';
 import { grey, blue, green, orange, red } from '@mui/material/colors';
 
@@ -32,7 +31,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-import LaunchIcon from '@mui/icons-material/Launch';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 import Dialog from '@mui/material/Dialog';
@@ -345,250 +343,251 @@ export default function DashboardPage() {
     : [];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3, md: 4 }, boxShadow: 'none', border: 'none', bgcolor: 'transparent' }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">Dashboard del Profesor</Typography>
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <Typography variant="body1">¡Bienvenido, {user.email}!</Typography>
-          {profileData && (<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mt: 1, color: 'text.secondary' }}><AccountBalanceWalletIcon fontSize="small" /><Typography variant="body2">Créditos: {profileData.credits ?? 'N/A'}</Typography></Box>)}
-        </Box>
-        {profileData && (<Typography variant="subtitle1" color={quotaReached ? 'error.main' : 'text.secondary'} sx={{ mb: 3, textAlign: 'center', fontWeight: quotaReached ? 'bold' : 'normal' }}>Redacciones: {profileData.current_paper_count} / {profileData.max_paper_quota} {quotaReached && <span style={{ marginLeft: '8px' }}>(Límite)</span>}</Typography>)}
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3, justifyContent: 'center' }}>
-          <Button variant="contained" color="primary" component={Link} href="/upload-exam" sx={{ py: 1.5, minWidth: '200px' }} disabled={quotaReached || isLoadingProfile || authLoading}>Subir Redacción</Button>
-          <Button variant="outlined" onClick={() => {fetchUserProfile(); fetchExamPapers();}} disabled={isLoadingProfile || isLoadingPapers} sx={{ py: 1.5, minWidth: '200px' }}>{isLoadingProfile || isLoadingPapers ? <CircularProgress size={24} /> : `Refrescar Todo`}</Button>
-        </Box>
-        {profileError && !profileData && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>Error perfil: {profileError}</Alert>}
-        
-        <Box sx={{ mt: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}><Typography variant="h5" component="h2">Mis Redacciones</Typography><IconButton onClick={() => { fetchExamPapers(true); fetchUserProfile(); }} disabled={isLoadingPapers || isLoadingProfile} color="primary"><RefreshIcon /></IconButton></Box>
-          {papersError && <Alert severity="error" sx={{ mb: 2 }}>Error redacciones: {papersError}</Alert>}
-          {isLoadingPapers && !papersError && <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}><CircularProgress /></Box>}
-          {!isLoadingPapers && examPapers.length === 0 && !papersError && (
-            <Typography sx={{ textAlign: 'center', color: 'text.secondary', my: 3 }}>No has subido redacciones. <Link href="/upload-exam" style={{ color: 'primary.main' }}>Sube una</Link>.</Typography>
-          )}
-          {!isLoadingPapers && examPapers.length > 0 && (
-            <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
-              {sortedExamPapers.map((paper) => {
-                const isProcessingAny = isTranscribingId === paper.id || isCorrectingId === paper.id || isSavingTranscription;
-                // Color de fondo azul sutil para estado 'transcribed' y verde sutil para 'corrected'
-                const cardBgColor = paper.status === 'transcribed' ? '#ebfcff' : paper.status === 'corrected' ? '#edffeb' : 'background.paper';
+    <>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Paper elevation={0} sx={{ p: { xs: 2, sm: 3, md: 4 }, boxShadow: 'none', border: 'none', bgcolor: 'transparent' }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">Dashboard del Profesor</Typography>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography variant="body1">¡Bienvenido, {user.email}!</Typography>
+            {profileData && (<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mt: 1, color: 'text.secondary' }}><AccountBalanceWalletIcon fontSize="small" /><Typography variant="body2">Créditos: {profileData.credits ?? 'N/A'}</Typography></Box>)}
+          </Box>
+          {profileData && (<Typography variant="subtitle1" color={quotaReached ? 'error.main' : 'text.secondary'} sx={{ mb: 3, textAlign: 'center', fontWeight: quotaReached ? 'bold' : 'normal' }}>Redacciones: {profileData.current_paper_count} / {profileData.max_paper_quota} {quotaReached && <span style={{ marginLeft: '8px' }}>(Límite)</span>}</Typography>)}
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3, justifyContent: 'center' }}>
+            <Button variant="contained" color="primary" component={Link} href="/upload-exam" sx={{ py: 1.5, minWidth: '200px' }} disabled={quotaReached || isLoadingProfile || authLoading}>Subir Redacción</Button>
+            <Button variant="outlined" onClick={() => {fetchUserProfile(); fetchExamPapers();}} disabled={isLoadingProfile || isLoadingPapers} sx={{ py: 1.5, minWidth: '200px' }}>{isLoadingProfile || isLoadingPapers ? <CircularProgress size={24} /> : `Refrescar Todo`}</Button>
+          </Box>
+          {profileError && !profileData && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>Error perfil: {profileError}</Alert>}
+          
+          <Box sx={{ mt: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}><Typography variant="h5" component="h2">Mis Redacciones</Typography><IconButton onClick={() => { fetchExamPapers(true); fetchUserProfile(); }} disabled={isLoadingPapers || isLoadingProfile} color="primary"><RefreshIcon /></IconButton></Box>
+            {papersError && <Alert severity="error" sx={{ mb: 2 }}>Error redacciones: {papersError}</Alert>}
+            {isLoadingPapers && !papersError && <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}><CircularProgress /></Box>}
+            {!isLoadingPapers && examPapers.length === 0 && !papersError && (
+              <Typography sx={{ textAlign: 'center', color: 'text.secondary', my: 3 }}>No has subido redacciones. <Link href="/upload-exam" style={{ color: 'primary.main' }}>Sube una</Link>.</Typography>
+            )}
+            {!isLoadingPapers && examPapers.length > 0 && (
+              <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
+                {sortedExamPapers.map((paper) => {
+                  const cardBgColor = paper.status === 'transcribed' ? '#ebfcff' : paper.status === 'corrected' ? '#edffeb' : 'background.paper';
 
-                return (
-                  <Card key={paper.id} sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1.5px solid', borderColor: 'grey.400', boxShadow: 'none', bgcolor: cardBgColor }}>
-                    <Box sx={{ p: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                      <Typography
-                        variant="h6"
-                        component="div"
-                        sx={{ mb: 1, cursor: 'pointer', minHeight: '32px', display: 'flex', alignItems: 'center' }}
-                        onClick={() => handleEditTitle(paper)}
-                      >
-                        {editingTitleId === paper.id ? (
-                          <TextField
-                            value={tempTitle}
-                            onChange={handleTitleChange}
-                            onBlur={() => handleTitleBlurOrSave(paper)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                (e.target as HTMLInputElement).blur();
-                              } else if (e.key === 'Escape') {
-                                setEditingTitleId(null);
-                              }
-                            }}
+                  return (
+                    <Card 
+                      key={paper.id}
+                      sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1.5px solid', borderColor: 'grey.400', boxShadow: 'none', bgcolor: cardBgColor, transition: 'box-shadow 0.2s', '&:hover': { boxShadow: 4 } }}
+                    >
+                      <Box sx={{ p: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                        <Typography
+                          variant="h6"
+                          component="div"
+                          sx={{ mb: 1, cursor: 'pointer', minHeight: '32px', display: 'flex', alignItems: 'center' }}
+                          onClick={e => { e.stopPropagation(); handleEditTitle(paper); }}
+                        >
+                          {editingTitleId === paper.id ? (
+                            <TextField
+                              value={tempTitle}
+                              onChange={handleTitleChange}
+                              onBlur={() => handleTitleBlurOrSave(paper)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  (e.target as HTMLInputElement).blur();
+                                } else if (e.key === 'Escape') {
+                                  setEditingTitleId(null);
+                                }
+                              }}
+                              size="small"
+                              autoFocus
+                              variant="standard"
+                              sx={{ fontSize: '1.1rem', minWidth: '120px' }}
+                              inputProps={{ maxLength: 60 }}
+                            />
+                          ) : (
+                            paper.filename || `Redacción ${paper.id}`
+                          )}
+                        </Typography>
+                        <Chip
+                          label={getStatusText(paper.status)}
+                          color={getStatusChipProps(paper.status).color}
+                          size="small"
+                          sx={{ ml: 1 }}
+                        />
+                      </Box>
+                      <Link href={`/essay/${paper.id}`} style={{ textDecoration: 'none', flexGrow: 1, display: 'flex' }} passHref>
+                        <CardContent
+                          sx={{ 
+                            height: '120px', 
+                            overflow: 'hidden',
+                            p: 2,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            '& pre': {
+                              fontFamily: 'monospace',
+                              fontSize: '0.92rem',
+                              whiteSpace: 'pre-wrap',
+                              lineHeight: '1.4',
+                              margin: 0
+                            }
+                          }}
+                        >
+                          <pre style={{ flexGrow: 1 }}>
+                            {paper.transcribed_text 
+                              ? paper.transcribed_text
+                                  .replace(/---[\s-]*(?:Página|Fin de Página|Page)[\s-]*\d+[\s-]*---/g, ' ')
+                                  .replace(/\n{2,}/g, '\n')
+                                  .trim()
+                                  .slice(0, 110) + '...'
+                              : 'Sin texto transcrito'}
+                          </pre>
+                          <div style={{ color: '#888', fontSize: '0.95em', marginTop: 2, textAlign: 'right', minHeight: 18 }}>
+                            {paper.images && paper.images.length > 0 ? `(${paper.images.length} pág${paper.images.length > 1 ? 's' : ''})` : ''}
+                          </div>
+                        </CardContent>
+                      </Link>
+                      <CardActions sx={{ p: 2, pt: 3 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+                          {/* Botón: Gestionar páginas (nuevo) */}
+                          <IconButton
+                            component={Link}
+                            href={`/upload-exam?id=${paper.id}`}
                             size="small"
-                            autoFocus
-                            variant="standard"
-                            sx={{ fontSize: '1.1rem', minWidth: '120px' }}
-                            inputProps={{ maxLength: 60 }}
-                          />
-                        ) : (
-                          paper.filename || `Redacción ${paper.id}`
-                        )}
-                      </Typography>
-                      <Chip
-                        label={getStatusText(paper.status)}
-                        color={getStatusChipProps(paper.status).color}
-                        size="small"
-                        sx={{ ml: 1 }}
+                            color="primary"
+                            title="Gestionar páginas (añadir, eliminar, reordenar)"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <CloudUploadIcon />
+                          </IconButton>
+                          {/* Botón: Transcribir */}
+                          <IconButton
+                            onClick={e => { e.stopPropagation(); handleTranscribe(paper.id); }}
+                            size="small"
+                            color="primary"
+                            title="Transcribir"
+                            disabled={paper.status !== 'uploaded'}
+                          >
+                            <TextFieldsIcon />
+                          </IconButton>
+                          {/* Botón: Revisar transcripción */}
+                          <IconButton
+                            onClick={e => { e.stopPropagation(); handleOpenTranscriptionEditor(paper); }}
+                            size="small"
+                            color="primary"
+                            title="Revisar transcripción"
+                            disabled={paper.status !== 'transcribed'}
+                          >
+                            <SpellcheckIcon />
+                          </IconButton>
+                          {/* Botón: Corregir */}
+                          <IconButton
+                            onClick={e => { e.stopPropagation(); handleCorrect(paper.id); }}
+                            size="small"
+                            color="primary"
+                            title="Corregir"
+                            disabled={paper.status !== 'transcribed'}
+                          >
+                            <AccountBalanceWalletIcon />
+                          </IconButton>
+                          {/* Botón: Borrar */}
+                          <IconButton
+                            onClick={e => { e.stopPropagation(); handleClickOpenDeleteDialog(paper); }}
+                            size="small"
+                            color="error"
+                            title="Eliminar"
+                            disabled={false}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                          <Box sx={{ flexGrow: 1 }} />
+                        </Stack>
+                      </CardActions>
+                    </Card>
+                  );
+                })}
+              </Box>
+            )}
+          </Box>
+        </Paper>
+        {/* Diálogos y snackbars */}
+        <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+          <DialogTitle>Confirmar Eliminación</DialogTitle>
+          <DialogContent>
+            <Typography>¿Seguro que quieres eliminar {paperToDelete?.filename || `ID: ${paperToDelete?.id}`}?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDeleteDialog} disabled={isDeleting}>Cancelar</Button>
+            <Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>{isDeleting?<CircularProgress size={20}/>:'Eliminar'}</Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={openTranscriptionEditor}
+          onClose={handleCloseTranscriptionEditor}
+          maxWidth="xl"
+          fullWidth
+          PaperProps={{ sx: { height: '90vh', maxHeight: 'calc(100% - 64px)', width: '95vw', maxWidth: '1800px' } }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            Revisar y Editar Transcripción: {editingPaper?.filename || `ID: ${editingPaper?.id || '...'}`}
+            {sortedEditingPaperImages.length > 1 && ` (Página ${activeImagePageIndex + 1} de ${sortedEditingPaperImages.length})`}
+          </DialogTitle>
+          <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}>
+            <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 45%' }, display: 'flex', flexDirection: 'column', p: 0.5, overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
+              {sortedEditingPaperImages.length > 0 ? (
+                <>
+                  {sortedEditingPaperImages.length > 1 && (
+                    <Tabs
+                      value={activeImagePageIndex}
+                      onChange={(event, newValue) => setActiveImagePageIndex(newValue)}
+                      variant="scrollable"
+                      scrollButtons="auto"
+                      aria-label="navegación de páginas de imagen"
+                      sx={{ borderBottom: 1, borderColor: 'divider', mb: 0.5, flexShrink: 0 }}
+                    >
+                      {sortedEditingPaperImages.map((img, index) => (
+                        <Tab label={`Pág ${img.page_number || index + 1}`} key={img.id || index} sx={{minWidth: '60px'}}/>
+                      ))}
+                    </Tabs>
+                  )}
+                  <Box sx={{ flexGrow: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    {sortedEditingPaperImages[activeImagePageIndex]?.image_url ? (
+                      <img
+                        src={sortedEditingPaperImages[activeImagePageIndex].image_url}
+                        alt={`Página ${sortedEditingPaperImages[activeImagePageIndex].page_number || activeImagePageIndex + 1}`}
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
                       />
-                    </Box>
-                    <CardContent sx={{ 
-                      height: '120px', 
-                      overflow: 'hidden',
-                      p: 2,
-                      '& pre': {
-                        fontFamily: 'monospace',
-                        fontSize: '0.92rem',
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: '1.4',
-                        margin: 0
-                      }
-                    }}>
-                      <pre>
-                        {paper.transcribed_text 
-                          ? paper.transcribed_text
-                              .replace(/---[\s-]*(?:Página|Fin de Página|Page)[\s-]*\d+[\s-]*---/g, ' ')
-                              .replace(/\n{2,}/g, '\n')
-                              .trim()
-                              .slice(0, 200) + '...' 
-                          : 'Sin texto transcrito'}
-                      </pre>
-                    </CardContent>
-                    <CardActions sx={{ p: 2, pt: 3 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
-                        {/* Botón: Gestionar páginas (nuevo) */}
-                        <IconButton
-                          component={Link}
-                          href={`/upload-exam?id=${paper.id}`}
-                          size="small"
-                          color="primary"
-                          title="Gestionar páginas (añadir, eliminar, reordenar)"
-                        >
-                          <CloudUploadIcon />
-                        </IconButton>
-                        {/* Botón: Transcribir */}
-                        <IconButton
-                          onClick={() => handleTranscribe(paper.id)}
-                          size="small"
-                          color="primary"
-                          title="Transcribir"
-                          disabled={paper.status !== 'uploaded'}
-                        >
-                          <TextFieldsIcon />
-                        </IconButton>
-                        {/* Botón: Revisar transcripción */}
-                        <IconButton
-                          onClick={() => handleOpenTranscriptionEditor(paper)}
-                          size="small"
-                          color="primary"
-                          title="Revisar transcripción"
-                          disabled={paper.status !== 'transcribed'}
-                        >
-                          <SpellcheckIcon />
-                        </IconButton>
-                        {/* Botón: Corregir */}
-                        <IconButton
-                          onClick={() => handleCorrect(paper.id)}
-                          size="small"
-                          color="primary"
-                          title="Corregir"
-                          disabled={paper.status !== 'transcribed'}
-                        >
-                          <AccountBalanceWalletIcon />
-                        </IconButton>
-                        {/* Botón: Borrar */}
-                        <IconButton
-                          onClick={() => handleClickOpenDeleteDialog(paper)}
-                          size="small"
-                          color="error"
-                          title="Eliminar"
-                          disabled={false} // Siempre activo
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                        <Box sx={{ flexGrow: 1 }} />
-                        {/* Botón: Abrir (alineado a la derecha) */}
-                        <IconButton
-                          component={Link}
-                          href={`/essay/${paper.id}`}
-                          size="small"
-                          color="primary"
-                          title="Abrir"
-                          disabled={paper.status !== 'transcribed' && paper.status !== 'corrected'}
-                        >
-                          <LaunchIcon />
-                        </IconButton>
-                      </Stack>
-                    </CardActions>
-                  </Card>
-                );
-              })}
+                    ) : ( <Typography>Error al cargar imagen de página.</Typography> )}
+                  </Box>
+                </>
+              ) : (<Typography>No hay imágenes para esta redacción.</Typography>)}
             </Box>
-          )}
-        </Box>
-      </Paper>
-      {/* Diálogos y snackbars */}
-      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Confirmar Eliminación</DialogTitle>
-        <DialogContent>
-          <Typography>¿Seguro que quieres eliminar {paperToDelete?.filename || `ID: ${paperToDelete?.id}`}?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} disabled={isDeleting}>Cancelar</Button>
-          <Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>{isDeleting?<CircularProgress size={20}/>:'Eliminar'}</Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog
-        open={openTranscriptionEditor}
-        onClose={handleCloseTranscriptionEditor}
-        maxWidth="xl"
-        fullWidth
-        PaperProps={{ sx: { height: '90vh', maxHeight: 'calc(100% - 64px)', width: '95vw', maxWidth: '1800px' } }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          Revisar y Editar Transcripción: {editingPaper?.filename || `ID: ${editingPaper?.id || '...'}`}
-          {sortedEditingPaperImages.length > 1 && ` (Página ${activeImagePageIndex + 1} de ${sortedEditingPaperImages.length})`}
-        </DialogTitle>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, p: 1, overflow: 'hidden', height: 'calc(100% - 64px - 52px - 16px)' }}>
-          <Box sx={{ flex: { xs: '1 1 auto', md: '0 1 45%' }, display: 'flex', flexDirection: 'column', p: 0.5, overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
-            {sortedEditingPaperImages.length > 0 ? (
-              <>
-                {sortedEditingPaperImages.length > 1 && (
-                  <Tabs
-                    value={activeImagePageIndex}
-                    onChange={(event, newValue) => setActiveImagePageIndex(newValue)}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    aria-label="navegación de páginas de imagen"
-                    sx={{ borderBottom: 1, borderColor: 'divider', mb: 0.5, flexShrink: 0 }}
-                  >
-                    {sortedEditingPaperImages.map((img, index) => (
-                      <Tab label={`Pág ${img.page_number || index + 1}`} key={img.id || index} sx={{minWidth: '60px'}}/>
-                    ))}
-                  </Tabs>
-                )}
-                <Box sx={{ flexGrow: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  {sortedEditingPaperImages[activeImagePageIndex]?.image_url ? (
-                    <img
-                      src={sortedEditingPaperImages[activeImagePageIndex].image_url}
-                      alt={`Página ${sortedEditingPaperImages[activeImagePageIndex].page_number || activeImagePageIndex + 1}`}
-                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
-                    />
-                  ) : ( <Typography>Error al cargar imagen de página.</Typography> )}
-                </Box>
-              </>
-            ) : (<Typography>No hay imágenes para esta redacción.</Typography>)}
-          </Box>
-          <Box sx={{ flex: { xs: '1 1 auto', md: '1 1 55%' }, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
-            <TextField
-              multiline
-              fullWidth
-              value={editableTranscriptionText}
-              onChange={(e) => setEditableTranscriptionText(e.target.value)}
-              variant="outlined"
-              placeholder="Edita la transcripción completa aquí..."
-              helperText="La transcripción de todas las páginas se muestra aquí (con separadores). Edita según sea necesario."
-              sx={{ flexGrow:1, '& .MuiInputBase-root':{height:'100%',display:'flex',flexDirection:'column', alignItems: 'flex-start'}, '& .MuiInputBase-inputMultiline':{flexGrow:1,height:'100% !important',overflowY:'auto !important',p:1.5,fontFamily:'monospace',fontSize:'0.95rem',lineHeight:1.6} }}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseTranscriptionEditor} disabled={isSavingTranscription}>Cancelar</Button>
-          <Button onClick={handleSaveEditedTranscription} variant="contained" disabled={isSavingTranscription} startIcon={isSavingTranscription?<CircularProgress size={16}/>:null}>{isSavingTranscription ? 'Guardando...' : 'Guardar Cambios'}</Button>
-        </DialogActions>
-      </Dialog>
-      <Snackbar
-        open={snackbarOpen}
-        onClose={handleCloseSnackbar}
-        autoHideDuration={6000}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-    </Container>
+            <Box sx={{ flex: { xs: '1 1 auto', md: '1 1 55%' }, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: { xs: '200px', md: 'auto' } }}>
+              <TextField
+                multiline
+                fullWidth
+                value={editableTranscriptionText}
+                onChange={(e) => setEditableTranscriptionText(e.target.value)}
+                variant="outlined"
+                placeholder="Edita la transcripción completa aquí..."
+                helperText="La transcripción de todas las páginas se muestra aquí (con separadores). Edita según sea necesario."
+                sx={{ flexGrow:1, '& .MuiInputBase-root':{height:'100%',display:'flex',flexDirection:'column', alignItems: 'flex-start'}, '& .MuiInputBase-inputMultiline':{flexGrow:1,height:'100% !important',overflowY:'auto !important',p:1.5,fontFamily:'monospace',fontSize:'0.95rem',lineHeight:1.6} }}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseTranscriptionEditor} disabled={isSavingTranscription}>Cancelar</Button>
+            <Button onClick={handleSaveEditedTranscription} variant="contained" disabled={isSavingTranscription} startIcon={isSavingTranscription?<CircularProgress size={16}/>:null}>{isSavingTranscription?'Guardando...':'Guardar Cambios'}</Button>
+          </DialogActions>
+        </Dialog>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </>
   );
 }
-
-// Si se quiere editar una redacción existente, se puede acceder a /upload-exam?id=ID
-// El componente detectará el query param y cargará los datos del ensayo existente para edición.
