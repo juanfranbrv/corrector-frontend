@@ -430,18 +430,18 @@ export default function DashboardPage() {
                             }
                           }}
                         >
-                          <pre style={{ flexGrow: 1 }}>
+                          <pre style={{ flexGrow: 1, display: 'inline', wordBreak: 'break-word' }}>
                             {paper.transcribed_text 
-                              ? paper.transcribed_text
-                                  .replace(/---[\s-]*(?:Página|Fin de Página|Page)[\s-]*\d+[\s-]*---/g, ' ')
-                                  .replace(/\n{2,}/g, '\n')
-                                  .trim()
-                                  .slice(0, 110) + '...'
+                              ? (
+                                  paper.transcribed_text
+                                    .replace(/---[\s-]*(?:Página|Fin de Página|Page)[\s-]*\d+[\s-]*---/g, ' ')
+                                    .replace(/\n{2,}/g, '\n')
+                                    .trim()
+                                    .slice(0, 120) + '...'
+                                )
                               : 'Sin texto transcrito'}
+                            {paper.images && paper.images.length > 0 ? ` (${paper.images.length} pág${paper.images.length > 1 ? 's' : ''})` : ''}
                           </pre>
-                          <div style={{ color: '#888', fontSize: '0.95em', marginTop: 2, textAlign: 'right', minHeight: 18 }}>
-                            {paper.images && paper.images.length > 0 ? `(${paper.images.length} pág${paper.images.length > 1 ? 's' : ''})` : ''}
-                          </div>
                         </CardContent>
                       </Link>
                       <CardActions sx={{ p: 2, pt: 3 }}>

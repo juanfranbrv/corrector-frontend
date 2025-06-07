@@ -24,6 +24,10 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
+import Image from 'next/image';
+import Lightbox from 'yet-another-react-lightbox';
+import 'yet-another-react-lightbox/styles.css';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const API_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL || 'http://127.0.0.1:8000';
 
@@ -56,6 +60,17 @@ export default function EssayDetailPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [essayId, setEssayId] = useState<string | null>(null);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [openTranscriptionEditor, setOpenTranscriptionEditor] = useState(false);
+  const [editableTranscriptionText, setEditableTranscriptionText] = useState('');
+  const [isSavingTranscription, setIsSavingTranscription] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info'>('success');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [images, setImages] = useState<ExamImage[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -85,6 +100,7 @@ export default function EssayDetailPage({ params }: { params: Promise<{ id: stri
         if (!res.ok) throw new Error('No se pudo cargar la redacción.');
         const data = await res.json();
         setPaper(data);
+        setImages(data.images || []);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -94,14 +110,10 @@ export default function EssayDetailPage({ params }: { params: Promise<{ id: stri
     fetchPaper();
   }, [essayId, session, authLoading]);
 
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [openTranscriptionEditor, setOpenTranscriptionEditor] = useState(false);
-  const [editableTranscriptionText, setEditableTranscriptionText] = useState('');
-  const [isSavingTranscription, setIsSavingTranscription] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info'>('success');
+  // Actualiza images si paper cambia (por transcribir/corregir)
+  useEffect(() => {
+    if (paper?.images) setImages(paper.images);
+  }, [paper]);
 
   const handleTranscribe = async () => {
     if (!session?.access_token || !paper) return;
@@ -179,13 +191,67 @@ export default function EssayDetailPage({ params }: { params: Promise<{ id: stri
     setSnackbarOpen(false);
   };
 
+  // Drag & drop handler
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination || !paper || !session?.access_token) return;
+    const reordered = Array.from(images);
+    const [removed] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, removed);
+    setImages(reordered);
+    // Llama al backend para guardar el nuevo orden
+    try {
+      await fetch(`${API_URL}/exam_papers/${paper.id}/reorder_images`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ image_ids: reordered.map(img => img.id) }),
+      });
+    } catch {
+      setSnackbarMessage('Error al reordenar páginas');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleDeleteImage = async (imgId: number) => {
+    if (!paper || !session?.access_token) return;
+    if (images.length <= 1) {
+      setSnackbarMessage('Debe haber al menos una página.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/exam_images/${imgId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) throw new Error('Error al eliminar la imagen');
+      const newImages = images.filter(img => img.id !== imgId);
+      setImages(newImages);
+      setPaper(prev => prev ? { ...prev, images: newImages } : prev);
+      setSnackbarMessage('Página eliminada.');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch {
+      setSnackbarMessage('Error al eliminar la página');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!paper) return null;
 
+  // Prepara las imágenes para el lightbox
+  const lightboxSlides = (images || []).map(img => ({ src: img.image_url }));
+
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper elevation={3} sx={{ p: { xs: 2, md: 4 } }}>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Paper elevation={0} sx={{ p: { xs: 2, md: 4 }, bgcolor: '#fff', boxShadow: 'none', border: 'none' }}>
         <Typography variant="h4" gutterBottom>Redacción: {paper.filename || `ID: ${paper.id}`}</Typography>
         <Typography variant="subtitle1" color="text.secondary" gutterBottom>Estado: {paper.status}</Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>Subido: {new Date(paper.created_at).toLocaleDateString()}</Typography>
@@ -206,14 +272,42 @@ export default function EssayDetailPage({ params }: { params: Promise<{ id: stri
             <CloudUploadIcon />
           </IconButton>
         </Stack>
-        {paper.images && paper.images.length > 0 && (
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', my: 2 }}>
-            {paper.images.map((img) => (
-              <Box key={img.id} sx={{ width: 120, height: 160, border: '1px solid #eee', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
-                <img src={img.image_url} alt={`Página ${img.page_number || ''}`} width={120} height={160} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </Box>
-            ))}
-          </Box>
+        {images && images.length > 0 && (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="essay-images" direction="horizontal">
+              {(provided) => (
+                <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', my: 2, minHeight: 240 }}>
+                  {images.map((img, idx) => (
+                    <Draggable key={img.id} draggableId={img.id.toString()} index={idx}>
+                      {(provided, snapshot) => (
+                        <Box
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          sx={{ width: 180, height: 240, border: '1px solid #eee', borderRadius: 2, overflow: 'hidden', position: 'relative', cursor: snapshot.isDragging ? 'grabbing' : 'pointer', transition: 'box-shadow 0.2s', '&:hover': { boxShadow: 6 }, background: snapshot.isDragging ? '#f5f5f5' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          onClick={() => { setLightboxIndex(idx); setLightboxOpen(true); }}
+                        >
+                          <Image src={img.image_url} alt={`Página ${img.page_number || ''}`} width={180} height={240} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                          {images.length > 1 && (
+                            <IconButton
+                              size="small"
+                              color="error"
+                              sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(255,255,255,0.85)', zIndex: 2, '&:hover': { bgcolor: 'rgba(255,255,255,1)' } }}
+                              onClick={e => { e.stopPropagation(); handleDeleteImage(img.id); }}
+                              title="Eliminar página"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </Box>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </Box>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
         <Typography variant="h6" sx={{ mt: 3 }}>Transcripción</Typography>
         <Paper variant="outlined" sx={{ p: 2, my: 1, background: '#fafafa', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
@@ -229,6 +323,14 @@ export default function EssayDetailPage({ params }: { params: Promise<{ id: stri
         </Paper>
         <Button variant="contained" sx={{ mt: 2 }} onClick={() => router.back()}>Volver</Button>
       </Paper>
+      {/* Lightbox para ampliar imágenes */}
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        slides={lightboxSlides}
+        index={lightboxIndex}
+        styles={{ container: { backgroundColor: 'rgba(0,0,0,0.95)' } }}
+      />
       {/* Diálogo para editar transcripción */}
       <Dialog open={openTranscriptionEditor} onClose={handleCloseTranscriptionEditor} maxWidth="md" fullWidth>
         <DialogTitle>Editar Transcripción</DialogTitle>

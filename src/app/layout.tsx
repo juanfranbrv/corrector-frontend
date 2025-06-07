@@ -27,6 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
+      <head>
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+      </head>
       <body className={monaSans.className}> {/* Aplicar la clase de Mona Sans */}
         <AuthProvider> {/* Envolver con AuthProvider */}
           <ThemeRegistry options={{ key: 'mui' }}>
